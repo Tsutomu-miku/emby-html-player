@@ -1,3 +1,6 @@
+// 把 time.ts 中的常用工具重新导出，方便 UI / hooks 使用统一入口
+export * from './time'
+
 /** 简单组合 className 的工具 */
 export function cx(
   ...parts: (string | false | null | undefined | Record<string, boolean | undefined>)[]
@@ -82,4 +85,18 @@ export function throttle<A extends unknown[]>(
       }
     }
   }
+}
+
+/**
+ * 把比特率（bps）格式化为人类可读字符串。
+ * - 0 / undefined / NaN 等返回 "—"
+ * - 小于 1_000_000（1 Mbps）使用 kbps：取整
+ * - 否则使用 Mbps：保留一位小数
+ */
+export function humanBitrate(bps?: number): string {
+  if (!bps || !Number.isFinite(bps)) return '—'
+  if (bps < 1_000_000) {
+    return `${Math.round(bps / 1000)} kbps`
+  }
+  return `${(bps / 1_000_000).toFixed(1)} Mbps`
 }

@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth'
 import { authenticateByName, getCurrentUser, getPublicSystemInfo } from '@/api'
 import { normalizeServerUrl, cx } from '@/utils'
+import type { PublicSystemInfo } from '@/api/types'
 
 /**
  * 登录页：输入服务器地址、用户名、密码，成功后跳转到原先要访问的页面（或 /）。
@@ -28,8 +29,12 @@ export function LoginPage() {
     if (server) {
       let cancelled = false
       setTesting(true)
-      getPublicSystemInfo_(server)
-        .then((r) => !cancelled && setServerInfo(r))
+      const base = normalizeServerUrl(server)
+      getPublicSystemInfo(base)
+        .then((r: PublicSystemInfo | undefined) => {
+          if (cancelled || !r) return
+          setServerInfo({ name: r.serverName || 'Emby Server', version: r.version || '' })
+        })
         .catch(() => !cancelled && setServerInfo(null))
         .finally(() => !cancelled && setTesting(false))
       return () => { cancelled = true }
@@ -157,21 +162,4 @@ export function LoginPage() {
       </form>
     </div>
   )
-}
-
-/**
- * 独立的公共信息查询（绕过 request 中的相对路径处理——因为还没有 login server 的持久化）。
- */
-async function getPublicSystemInfo_(server: string): Promise<{ name: string; version: string }> {
-  const base = normalizeServerUrl(server)
-  const res = await fetch(`${base}/System/Info/Public`, {
-    method: 'GET',
-    headers: { Accept: 'application/json' },
-  })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  const data = await res.json()
-  return {
-    name: data.ServerName ?? data.Name ?? 'Emby Server',
-    version: data.Version ?? '',
-  }
 }

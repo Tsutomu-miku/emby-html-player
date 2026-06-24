@@ -8,6 +8,7 @@ import type {
 import type { UserView } from './users'
 import { getUserViews } from './users'
 
+// 注意：DEFAULT_FIELDS 是 Emby 接口的 Fields 参数枚举值（不是字段名），保持 PascalCase 原样。
 export const DEFAULT_FIELDS = [
   'PrimaryImageAspectRatio',
   'BasicSyncInfo',
@@ -55,6 +56,8 @@ export function getItems(
   userId: string,
   params: GetItemsParams = {},
 ): Promise<QueryResult<BaseItemDto>> {
+  // 注意：sortBy 的值（如 IndexNumber, ParentIndexNumber）是 Emby 枚举，保持 PascalCase；
+  // sortBy 这个 key 本身会被 camelToPascal 变为 SortBy（正好符合 Emby 约定）。
   const q = withDefaultFields({ ...params, userId, recursive: params.recursive ?? true })
   return request<QueryResult<BaseItemDto>>(`/Users/${userId}/Items`, {
     params: q as Record<string, any>,
@@ -130,6 +133,8 @@ export function getNextUp(
       userId,
       ...withDefaultFields(params),
       limit: params.limit ?? 24,
+      // 值本身是 Emby 约定的布尔语义（DisableFirstEpisode 这种参数名），
+      // key 经 camelToPascal 变为 DisableFirstEpisode
       disableFirstEpisode: true,
       nextUpDateCutoff: '0001-01-01T00:00:00Z',
     } as Record<string, any>,
@@ -187,9 +192,11 @@ export function getRecommendations(
       userId,
       categoryLimit,
       itemLimit,
-      Fields: DEFAULT_FIELDS.join(','),
-      EnableImages: true,
-      ImageTypeLimit: 1,
+      // Fields / EnableImages / ImageTypeLimit 为值本身是枚举（字符串）或布尔，
+      // key 由 camelToPascal 变为对应 PascalCase
+      fields: DEFAULT_FIELDS.join(','),
+      enableImages: true,
+      imageTypeLimit: 1,
     },
   }) as Promise<any>
 }

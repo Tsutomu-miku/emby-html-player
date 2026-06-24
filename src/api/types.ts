@@ -32,6 +32,10 @@ export interface UserDto {
   primaryImageAspectRatio?: number
   policy?: UserPolicy
   configuration?: UserConfiguration
+  /** 最近登录时间（ISO 字符串） */
+  lastLoginDate?: string
+  /** 最近活动时间（ISO 字符串） */
+  lastActivityDate?: string
 }
 
 export interface UserPolicy {
@@ -87,6 +91,14 @@ export interface BaseItemDto {
   genres?: string[]
   tags?: string[]
   providerIds?: Record<string, string>
+  /** 社区评分（如 TMDB 0-10 */
+  communityRating?: number
+  /** 官方分级（如 PG-13、TV-14、TV-MA） */
+  officialRating?: string
+  /** 影评人评分（烂番茄/Metacritic 等 */
+  criticRating?: number
+  /** 评分累计评价数量 */
+  voteCount?: number
   /** 电视剧：季数 */
   childCount?: number
   /** 播放信息：是否可播放 */
@@ -194,6 +206,12 @@ export interface MediaSourceInfo {
   mediaAttachments?: MediaAttachment[]
   analyzeDurationMs?: number
   timestamp?: 'None' | 'Zero' | 'Valid'
+  /** 若开启直播流 ID（LiveStreamId） */
+  liveStreamId?: string
+  /** 默认音频流索引（DefaultAudioStreamIndex） */
+  defaultAudioStreamIndex?: number
+  /** 默认字幕流索引（DefaultSubtitleStreamIndex） */
+  defaultSubtitleStreamIndex?: number
 }
 
 export interface MediaStream {
@@ -233,6 +251,8 @@ export interface MediaStream {
   deliveryUrl?: string
   codecTimeBaseTicks?: number
   supportsInterlacedDecoding?: boolean
+  /** 是否为文本字幕流（非图片格式字幕）——浏览器可直接显示 */
+  isTextSubtitleStream?: boolean
 }
 
 export type SubtitleDeliveryMethod =

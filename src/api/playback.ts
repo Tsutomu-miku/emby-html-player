@@ -10,7 +10,10 @@ import type {
 import { useAuthStore } from '@/store/auth'
 import type { PlayMethod } from './types'
 
-/** 浏览器/设备播放能力描述，用于 PlaybackInfo 转码协商。 */
+/** 浏览器/设备播放能力描述，用于 PlaybackInfo 转码协商。
+ * 注意：这里字段均使用 camelCase，http.ts 会在发送前递归转换为 PascalCase。
+ * （嵌套类型条件 Condition/Property 等枚举值本身是 Emby 服务端约定的字符串，保持 PascalCase。）
+ */
 export function buildDeviceProfile(): DeviceProfile {
   // 检测容器/编码支持（简化版）
   const video = document.createElement('video')
@@ -44,99 +47,101 @@ export function buildDeviceProfile(): DeviceProfile {
   const transcodeAudioCodec = 'aac'
 
   return {
-    Name: 'Emby H5 Player',
-    MaxStreamingBitrate: 20_000_000,
-    MaxStaticBitrate: 40_000_000,
-    MusicStreamingTranscodingBitrate: 384_000,
-    DirectPlayProfiles: [
+    name: 'Emby H5 Player',
+    maxStreamingBitrate: 20_000_000,
+    maxStaticBitrate: 40_000_000,
+    musicStreamingTranscodingBitrate: 384_000,
+    directPlayProfiles: [
       {
-        Container: directPlayContainers.join(','),
-        Type: 'Video',
-        VideoCodec: directPlayVideoCodecs.join(','),
-        AudioCodec: directAudioCodecs.join(','),
+        container: directPlayContainers.join(','),
+        type: 'Video',
+        videoCodec: directPlayVideoCodecs.join(','),
+        audioCodec: directAudioCodecs.join(','),
       },
       {
-        Container: 'mp3',
-        Type: 'Audio',
-        AudioCodec: 'mp3',
+        container: 'mp3',
+        type: 'Audio',
+        audioCodec: 'mp3',
       },
       {
-        Container: 'aac',
-        Type: 'Audio',
-        AudioCodec: 'aac',
+        container: 'aac',
+        type: 'Audio',
+        audioCodec: 'aac',
       },
       {
-        Container: 'flac',
-        Type: 'Audio',
-        AudioCodec: 'flac',
+        container: 'flac',
+        type: 'Audio',
+        audioCodec: 'flac',
       },
       {
-        Container: 'opus',
-        Type: 'Audio',
-        AudioCodec: 'opus',
-      },
-    ],
-    TranscodingProfiles: [
-      {
-        Container: canNativeHls ? 'ts' : 'aac', // ts 用于视频转码，aac 用于音频
-        Type: 'Video',
-        AudioCodec: transcodeAudioCodec,
-        VideoCodec: transcodeVideoCodec,
-        Protocol: 'http',
-        MaxAudioChannels: '6',
-        MinSegments: 2,
-        BreakOnNonKeyFrames: true,
-      },
-      {
-        Container: 'aac',
-        Type: 'Audio',
-        AudioCodec: 'aac',
-        Protocol: 'http',
-      },
-      {
-        Container: 'mp3',
-        Type: 'Audio',
-        AudioCodec: 'mp3',
-        Protocol: 'http',
-      },
-      {
-        Container: 'm3u8',
-        Type: 'Video',
-        AudioCodec: transcodeAudioCodec,
-        VideoCodec: transcodeVideoCodec,
-        Protocol: 'hls',
-        MaxAudioChannels: '6',
-        MinSegments: 2,
-        EnableSubtitlesInManifest: true,
-        BreakOnNonKeyFrames: true,
+        container: 'opus',
+        type: 'Audio',
+        audioCodec: 'opus',
       },
     ],
-    SubtitleProfiles: [
-      { Format: 'vtt', Method: 'External', DidlMode: 'SUBTITLE' },
-      { Format: 'subrip', Method: 'External' },
-      { Format: 'srt', Method: 'External' },
-      { Format: 'ass', Method: 'External' },
-      { Format: 'ssa', Method: 'External' },
-      { Format: 'pgssub', Method: 'Hls' },
-      { Format: 'dvdsub', Method: 'Hls' },
-      { Format: 'sub', Method: 'External' },
-      { Format: 'ttml', Method: 'External' },
-    ],
-    CodecProfiles: [
+    transcodingProfiles: [
       {
-        Type: 'Video',
-        Codec: 'h264',
-        Conditions: [
-          { Condition: 'LessThanEqual', Property: 'Width', Value: '3840', IsRequired: false },
-          { Condition: 'LessThanEqual', Property: 'Height', Value: '2160', IsRequired: false },
-          { Condition: 'LessThanEqual', Property: 'VideoLevel', Value: '52', IsRequired: false },
+        container: canNativeHls ? 'ts' : 'aac', // ts 用于视频转码，aac 用于音频
+        type: 'Video',
+        audioCodec: transcodeAudioCodec,
+        videoCodec: transcodeVideoCodec,
+        protocol: 'http',
+        maxAudioChannels: '6',
+        minSegments: 2,
+        breakOnNonKeyFrames: true,
+      },
+      {
+        container: 'aac',
+        type: 'Audio',
+        audioCodec: 'aac',
+        protocol: 'http',
+      },
+      {
+        container: 'mp3',
+        type: 'Audio',
+        audioCodec: 'mp3',
+        protocol: 'http',
+      },
+      {
+        container: 'm3u8',
+        type: 'Video',
+        audioCodec: transcodeAudioCodec,
+        videoCodec: transcodeVideoCodec,
+        protocol: 'hls',
+        maxAudioChannels: '6',
+        minSegments: 2,
+        enableSubtitlesInManifest: true,
+        breakOnNonKeyFrames: true,
+      },
+    ],
+    subtitleProfiles: [
+      // 注意：format / didlMode 是字符串值，保持 Emby 约定（不是 key，不会被转换）
+      { format: 'vtt', method: 'External', didlMode: 'SUBTITLE' },
+      { format: 'subrip', method: 'External' },
+      { format: 'srt', method: 'External' },
+      { format: 'ass', method: 'External' },
+      { format: 'ssa', method: 'External' },
+      { format: 'pgssub', method: 'Hls' },
+      { format: 'dvdsub', method: 'Hls' },
+      { format: 'sub', method: 'External' },
+      { format: 'ttml', method: 'External' },
+    ],
+    codecProfiles: [
+      {
+        type: 'Video',
+        codec: 'h264',
+        conditions: [
+          // Condition/Property/Value 是字符串枚举（非字段名），保持 PascalCase
+          { condition: 'LessThanEqual', property: 'Width', value: '3840', isRequired: false },
+          { condition: 'LessThanEqual', property: 'Height', value: '2160', isRequired: false },
+          { condition: 'LessThanEqual', property: 'VideoLevel', value: '52', isRequired: false },
         ],
       },
       {
-        Type: 'VideoAudio',
-        Codec: 'aac,mp3,mp2,opus,flac',
-        Conditions: [
-          { Condition: 'LessThanEqual', Property: 'AudioChannels', Value: '8', IsRequired: false },
+        type: 'VideoAudio',
+        codec: 'aac,mp3,mp2,opus,flac',
+        conditions: [
+          { condition: 'LessThanEqual', property: 'AudioChannels', value: '8', isRequired: false },
         ],
       },
     ],
@@ -145,6 +150,9 @@ export function buildDeviceProfile(): DeviceProfile {
 
 /**
  * 获取 PlaybackInfo：Emby 决定返回哪些 media sources，以及转码 URL。
+ *
+ * 这里 params、body 均写 camelCase，由 http.ts 统一转 PascalCase。
+ * 注意：值 StartTimeTicks/UserId 等本来就是整数/字符串，转换的是「key」，值不受影响。
  */
 export function getPlaybackInfo(
   userId: string,
@@ -171,7 +179,8 @@ export function getPlaybackInfo(
   }
   return request<PlaybackInfoResponse>(`/Items/${itemId}/PlaybackInfo`, {
     method: 'POST',
-    params: { StartTimeTicks: body.startTimeTicks ?? 0, UserId: userId },
+    // key 用 camelCase，会被转换为 StartTimeTicks / UserId
+    params: { startTimeTicks: body.startTimeTicks ?? 0, userId },
     body,
   })
 }
@@ -180,12 +189,18 @@ export function getPlaybackInfo(
 export function closeLiveStream(liveStreamId: string) {
   return request(`/LiveStreams/Close`, {
     method: 'POST',
-    params: { LiveStreamId: liveStreamId },
+    // key 会被转换为 LiveStreamId
+    params: { liveStreamId },
   })
 }
 
 /**
  * 根据 MediaSourceInfo 决定最终播放 URL 和播放方式（DirectPlay/DirectStream/Transcode）。
+ *
+ * 关键健壮性修复：
+ *  - method=Transcode：若转码 URL 缺少 PlaySessionId，强制塞入。
+ *  - method=DirectPlay：directStreamUrl 经 appendAuth 确保有 api_key / DeviceId。
+ *  - method=Transcode 时会把媒体源内的 liveStreamId 一并返回，便于结束后关闭直播流。
  */
 export function resolveMediaPlayback(params: {
   itemId: string
@@ -212,7 +227,7 @@ export function resolveMediaPlayback(params: {
     ...useAuthStore.getState(),
     userId: params.userId ?? useAuthStore.getState().userId,
   }
-  const base = server.replace(/\/+$/, '')
+  const base = (server || '').replace(/\/+$/, '')
 
   // 1. DirectPlay
   if (mediaSource.supportsDirectPlay && mediaSource.directStreamUrl) {
@@ -228,13 +243,18 @@ export function resolveMediaPlayback(params: {
     const url = new URL(
       makeAbsolute(base, appendAuth(mediaSource.transcodingUrl, accessToken, deviceId)),
     )
-    if (playSessionId && !url.searchParams.has('PlaySessionId')) {
+    // 强制塞入 PlaySessionId：只要有 playSessionId 就一定加上，否则某些 Emby 版本会返回 400
+    if (playSessionId) {
       url.searchParams.set('PlaySessionId', playSessionId)
     }
     if (startTimeTicks) {
       url.searchParams.set('StartTimeTicks', String(startTimeTicks))
     }
-    return { url: url.toString(), method: 'Transcode' }
+    return {
+      url: url.toString(),
+      method: 'Transcode',
+      liveStreamId: mediaSource.liveStreamId,
+    }
   }
 
   // 3. 退回 DirectStream：progressive URL
@@ -260,12 +280,14 @@ export function resolveMediaPlayback(params: {
     .join('&')
   const ext = container && container !== 'mkv' ? `.${container}` : '.ts'
   return {
-    url: `${base}/Videos/${itemId}/stream${ext}?${qs}`,
+    url: base ? `${base}/Videos/${itemId}/stream${ext}?${qs}` : '',
     method: 'DirectStream',
+    liveStreamId: mediaSource.liveStreamId,
   }
   void userId
 }
 
+/** 为已有 URL 追加 api_key / DeviceId（若未出现），保留 fragment。 */
 function appendAuth(url: string, accessToken: string, deviceId: string): string {
   const [prefix, fragment = ''] = url.split('#')
   const [pathPart, query = ''] = prefix.split('?')
@@ -320,7 +342,8 @@ export function getSubtitleUrl(params: {
   format?: string
 }): string {
   const { server, accessToken, deviceId } = useAuthStore.getState()
-  const base = server.replace(/\/+$/, '')
+  const base = (server || '').replace(/\/+$/, '')
+  if (!base) return ''
   const fmt = params.format || 'vtt'
   const qs = new URLSearchParams()
   qs.set('api_key', accessToken)

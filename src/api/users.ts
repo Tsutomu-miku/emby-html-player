@@ -8,17 +8,18 @@ import type {
 
 /**
  * 获取 Emby 服务器公开信息（无需登录）。用于连接测试。
+ *
+ * 说明：传入的 server 未配置在 authStore 中，所以直接拼接成完整 URL 传入 request；
+ * http.ts 会识别 http(s):// 开头的 path 并直接使用，不再拼接 base。
  */
 export function getPublicSystemInfo(server: string): Promise<PublicSystemInfo> {
   const base = server.replace(/\/+$/, '')
-  return request<PublicSystemInfo>(`${base}/System/Info/Public`, {
-    // 这里走的是绝对 URL，实际逻辑在 request 里当 path 含 http 时会被当成完整 URL
-    // 所以我们改用裸 fetch
-  })
+  return request<PublicSystemInfo>(`${base}/System/Info/Public`)
 }
 
 /**
  * 用户登录：用户名密码认证。
+ * body 中使用 camelCase，http.ts 会自动转为 PascalCase（Username/Pw）。
  */
 export async function authenticateByName(params: {
   server: string
@@ -30,9 +31,10 @@ export async function authenticateByName(params: {
     `${base}/Users/AuthenticateByName`,
     {
       method: 'POST',
+      // 注意：这里不需要手动写 Username/Pw，统一用 camelCase，由 http.ts 转换
       body: {
-        Username: params.username,
-        Pw: params.pw,
+        username: params.username,
+        pw: params.pw,
       },
       headers: {
         'X-Emby-Authorization':
@@ -64,7 +66,9 @@ export function getUserById(userId: string): Promise<UserDto> {
 export function getUserViews(userId: string): Promise<{ items: UserView[]; totalRecordCount: number }> {
   return request(`/Users/${userId}/Views`, {
     params: {
-      Fields: 'PrimaryImageAspectRatio,BaseItemName,Overview',
+      // fields 为字符串数组枚举值，不是字段名本身 —— 但因为整体 camelToPascal，
+      // 'fields' 会被转为 'Fields'，值保持不变（符合 Emby 约定）
+      fields: 'PrimaryImageAspectRatio,BaseItemName,Overview',
     },
   }) as Promise<{ items: UserView[]; totalRecordCount: number }>
 }
