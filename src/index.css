@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  background: #101114;
+  color: #e6e8eb;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2e3a;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #393f50;
+}
+
+@layer components {
+  .card {
+    @apply bg-jelly-card rounded-lg overflow-hidden transition-colors hover:bg-jelly-hover;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-jelly-accent text-white font-medium
+           transition hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-jelly-hover text-jelly-text
+           transition hover:bg-white/10;
+  }
+  .input {
+    @apply w-full px-3 py-2 bg-jelly-panel border border-white/10 rounded-md text-jelly-text placeholder-jelly-muted
+           outline-none focus:border-jelly-accent transition;
+  }
+  .chip {
+    @apply inline-flex items-center px-2 py-0.5 text-xs rounded bg-white/5 border border-white/10 text-jelly-muted;
+  }
+  .skeleton {
+    background: linear-gradient(90deg, #1a1c22 0px, #20232c 50%, #1a1c22 100%);
+    background-size: 1000px 100%;
+    @apply animate-shimmer rounded;
+  }
+}
