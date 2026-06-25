@@ -9,6 +9,14 @@ import {
   closeLiveStream,
 } from '@/api/playback'
 import { useAuthStore } from '@/store/auth'
+import {
+  useSettingsStore,
+  rankLanguageMatch,
+  type PlayMode as SettingsPlayMode,
+  type SourceSelectionStrategy,
+  type BurnInSubtitlePolicy,
+  type SubtitleAutoSelectPolicy,
+} from '@/store/settings'
 import { getItem } from '@/api/library'
 import { cx, debounce } from '@/utils'
 import { secondsToTicks, ticksToSeconds, clamp } from '@/utils/time'
@@ -51,68 +59,191 @@ function isTextSubtitle(s: MediaStream): boolean {
 
 /**
  * 从一组 MediaSource 里挑选默认源：
- *  优先级：supportsDirectPlay && bitrate 合理 → supportsDirectStream → supportsTranscoding → 第一个
+ *  先按设置过滤（playMode：允许哪些 DirectPlay/DirectStream/Transcode），
+ *  再按 sourceStrategy（quality / balanced / size）在候选里排序。
  */
-function pickDefaultSource(sources: MediaSourceInfo[], preferId?: string): MediaSourceInfo | undefined {
+function pickDefaultSource(
+  sources: MediaSourceInfo[],
+  opts: {
+    preferId?: string
+    playMode?: SettingsPlayMode
+    strategy?: SourceSelectionStrategy
+  } = {},
+): MediaSourceInfo | undefined {
+  const { preferId, playMode = 'auto', strategy = 'balanced' } = opts
   if (!sources.length) return undefined
   if (preferId) {
     const found = sources.find((s) => s.id === preferId)
     if (found) return found
   }
-  // 直接播放（带直链 URL 优先）
-  const dp = sources.filter((s) => s.supportsDirectPlay)
-  if (dp.length) {
-    // 优先有 URL 的，其次 bitrate 中间值（不选超大的 4K 源除非只有它）
-    const ordered = [...dp].sort((a, b) => {
-      const aHas = a.directStreamUrl ? 0 : 1
-      const bHas = b.directStreamUrl ? 0 : 1
-      if (aHas !== bHas) return aHas - bHas
-      const ab = a.bitrate ?? 0
-      const bb = b.bitrate ?? 0
-      // 介于 1-30 Mbps 更合理
-      const score = (br: number) => (br >= 1e6 && br <= 30e6 ? 0 : Math.abs(br - 8e6))
-      return score(ab) - score(bb)
-    })
-    return ordered[0]
+  // 先过滤出允许的模式
+  const allowed = sources.filter((s) => {
+    switch (playMode) {
+      case 'direct-play':
+        return !!s.supportsDirectPlay
+      case 'direct-stream':
+        return !!s.supportsDirectPlay || !!s.supportsDirectStream
+      case 'transcode':
+        return !!s.supportsTranscoding
+      case 'auto':
+      default:
+        return true
+    }
+  })
+  const pool = allowed.length ? allowed : sources // 兜底：所有都不允许时仍挑一个
+  // 在 pool 内按策略打分
+  const scored = pool.map((s) => ({ s, score: scoreSource(s, strategy) }))
+  scored.sort((a, b) => b.score - a.score)
+  return scored[0]?.s
+}
+
+function scoreSource(s: MediaSourceInfo, strategy: SourceSelectionStrategy): number {
+  let score = 0
+  // 能力分：直链 >> DirectStream >> Transcode
+  if (s.supportsDirectPlay && s.directStreamUrl) score += 1000
+  else if (s.supportsDirectStream) score += 800
+  else if (s.supportsTranscoding) score += 600
+  // 码率分
+  const br = s.bitrate ?? 0
+  switch (strategy) {
+    case 'quality':
+      score += Math.min(br / 1_000_000, 200) // 越高越好，最多加 200
+      break
+    case 'size':
+      score += br > 0 ? Math.max(0, 200 - br / 1_000_000) : 50 // 越低越好
+      break
+    case 'balanced':
+    default:
+      // 6~20 Mbps 视为甜点
+      if (br >= 4e6 && br <= 30e6) score += 150
+      else if (br > 0) score += 80
+      break
   }
-  const ds = sources.filter((s) => s.supportsDirectStream)
-  if (ds.length) return ds[0]
-  const tr = sources.filter((s) => s.supportsTranscoding)
-  if (tr.length) return tr[0]
-  return sources[0]
+  // 有章节 / 多音轨 / 多字幕 小加分
+  const audios = (s.mediaStreams || []).filter((x) => x.type === 'Audio').length
+  const subs = (s.mediaStreams || []).filter((x) => x.type === 'Subtitle').length
+  score += Math.min(audios, 4) * 3 + Math.min(subs, 6) * 2
+  return score
 }
 
 function pickDefaultAudio(
   streams: MediaStream[],
-  preferred?: number,
-  mediaSourceDefaultIndex?: number | null,
+  opts: {
+    preferredIndex?: number
+    mediaSourceDefaultIndex?: number | null
+    preferredLanguages: string[]
+  },
 ): number {
-  if (preferred != null) {
-    const idx = streams.findIndex((s) => s.index === preferred)
-    if (idx >= 0) return preferred
+  const { preferredIndex, mediaSourceDefaultIndex, preferredLanguages } = opts
+  if (preferredIndex != null) {
+    const idx = streams.findIndex((s) => s.index === preferredIndex)
+    if (idx >= 0) return preferredIndex
   }
   if (mediaSourceDefaultIndex != null) {
     if (streams.some((s) => s.index === mediaSourceDefaultIndex)) return mediaSourceDefaultIndex
   }
+  if (!streams.length) return 0
+  // 按首选语言打分（越小越匹配）；若都不匹配再回退 isDefault / 第 0 条
+  let best: { stream: MediaStream; rank: number } | undefined
+  for (const s of streams) {
+    const r = rankLanguageMatch(preferredLanguages, s.language || s.languageTag)
+    const candidate = { stream: s, rank: r < 0 ? 999 : r + (s.isDefault ? -0.5 : 0) }
+    if (!best || candidate.rank < best.rank) best = candidate
+  }
+  if (best && best.rank < 900) return best.stream.index
   const def = streams.find((s) => s.isDefault)
   if (def) return def.index
-  return streams[0]?.index ?? 0
+  return streams[0].index ?? 0
 }
 
 function pickDefaultSubtitle(
   streams: MediaStream[],
-  preferred: number | null | undefined,
-): number | null {
-  // null = 明确关闭；number = 指定；undefined = 找默认
-  if (preferred === null) return null
+  opts: {
+    preferred?: number | null
+    preferredLanguages: string[]
+    autoSelect: SubtitleAutoSelectPolicy
+    burnInPolicy: BurnInSubtitlePolicy
+    forcedOnly: boolean
+    audioStream?: MediaStream
+  },
+): { index: number | null; delivery: 'external' | 'encode' } {
+  const { preferred, preferredLanguages, autoSelect, burnInPolicy, forcedOnly, audioStream } = opts
+  // null = 明确关闭；number = 指定；undefined = 智能默认
+  if (preferred === null) return { index: null, delivery: 'external' }
   if (typeof preferred === 'number') {
-    if (streams.some((s) => s.index === preferred)) return preferred
-    return null
+    const s = streams.find((x) => x.index === preferred)
+    if (s) return { index: preferred, delivery: resolveDelivery(s, burnInPolicy) }
+    return { index: null, delivery: 'external' }
   }
-  // 默认字幕：非 forced 的 default；否则返回 null（用户未指定时默认不开启，避免打扰）
-  const def = streams.find((s) => s.isDefault && !s.isForced)
-  if (def) return def.index
-  return null
+
+  if (autoSelect === 'off') return { index: null, delivery: 'external' }
+
+  // 过滤候选
+  let pool = streams.slice()
+  if (forcedOnly) pool = pool.filter((s) => !!s.isForced)
+
+  // 语言筛选 + 排序
+  const audioLang =
+    audioStream?.language || audioStream?.languageTag
+  const isForeignAudio = (subLang: string | undefined) => {
+    if (!audioLang || !subLang) return true
+    const a = audioLang.toLowerCase()
+    const s = subLang.toLowerCase()
+    return !(a === s || a.startsWith(s) || s.startsWith(a))
+  }
+
+  const ranked = pool
+    .map((s) => {
+      const r = rankLanguageMatch(preferredLanguages, s.language || s.languageTag)
+      const notMatch = r < 0
+      const foreign = isForeignAudio(s.language || s.languageTag)
+      const sdh = /sdh|cc|听障|hearing/i.test(`${s.title || ''} ${s.displayTitle || ''}`)
+      // 按策略给一个「综合匹配度」：负数 = 不满足策略门槛；数字越小越优先
+      let gate = 0
+      switch (autoSelect) {
+        case 'always':
+          gate = 0
+          break
+        case 'smart':
+          // 外语 / SDH 都通过，其它也通过但降权
+          gate = foreign || sdh ? 0 : 100
+          break
+        case 'foreign':
+          gate = foreign ? 0 : -1
+          break
+        case 'sdh':
+          gate = sdh ? 0 : -1
+          break
+      }
+      return {
+        stream: s,
+        rank: gate < 0 ? Infinity : gate + (notMatch ? 10 : r) + (s.isDefault ? -0.5 : 0) + (s.isForced ? 0.5 : 0),
+      }
+    })
+    .filter((x) => x.rank < Infinity)
+    .sort((a, b) => a.rank - b.rank)
+  if (!ranked.length) return { index: null, delivery: 'external' }
+  const chosen = ranked[0].stream
+  return { index: chosen.index, delivery: resolveDelivery(chosen, burnInPolicy) }
+}
+
+function resolveDelivery(
+  s: MediaStream,
+  burnInPolicy: BurnInSubtitlePolicy,
+): 'external' | 'encode' {
+  const isText = isTextSubtitle(s)
+  switch (burnInPolicy) {
+    case 'always':
+      return 'encode'
+    case 'never':
+      return isText ? 'external' : 'external' // 位图也尝试外挂（会黑屏/不显示）
+    case 'bitmap-only':
+      return isText ? 'external' : 'encode'
+    case 'auto':
+    default:
+      // 位图或不可文本：烧录；文本：外挂
+      return isText ? 'external' : 'encode'
+  }
 }
 
 /** 从 MediaSource 中提取特定类型的流 */
@@ -137,6 +268,34 @@ export function Player(props: PlayerProps) {
   } = props
 
   const userId = useAuthStore((s) => s.userId)
+
+  // ===== 从 settings store 读取（每个字段单独 selector，避免 Player 过度渲染）=====
+  const playModeSetting = useSettingsStore((s) => s.playMode)
+  const maxBitrateBps = useSettingsStore((s) => s.maxBitrateBps)
+  const maxAudioChannels = useSettingsStore((s) => s.maxAudioChannels)
+  const sourceStrategy = useSettingsStore((s) => s.sourceStrategy)
+  const preferredSubtitleLanguages = useSettingsStore((s) => s.preferredSubtitleLanguages)
+  const preferredAudioLanguages = useSettingsStore((s) => s.preferredAudioLanguages)
+  const subtitleAutoSelect = useSettingsStore((s) => s.subtitleAutoSelect)
+  const burnInPolicy = useSettingsStore((s) => s.burnInPolicy)
+  const subtitleFontScale = useSettingsStore((s) => s.subtitleFontScale)
+  const subtitleForcedOnly = useSettingsStore((s) => s.subtitleForcedOnly)
+  const enableIntroSkip = useSettingsStore((s) => s.enableIntroSkip)
+  const introSkipStartSeconds = useSettingsStore((s) => s.introSkipStartSeconds)
+  const introSkipEndSeconds = useSettingsStore((s) => s.introSkipEndSeconds)
+  const introSkipUseKeywordDetect = useSettingsStore((s) => s.introSkipUseKeywordDetect)
+  const enableCreditsSkip = useSettingsStore((s) => s.enableCreditsSkip)
+  const creditsSkipThresholdSeconds = useSettingsStore((s) => s.creditsSkipThresholdSeconds)
+  const rememberPlaybackRate = useSettingsStore((s) => s.rememberPlaybackRate)
+  const defaultPlaybackRate = useSettingsStore((s) => s.defaultPlaybackRate)
+  const resumeRewindSeconds = useSettingsStore((s) => s.resumeRewindSeconds)
+  const setSettings = useSettingsStore((s) => s.set)
+
+  // 片头跳过的「ShowButton」模式：在进入 OP 区间时显示一个浮层；若已显示过则不再弹
+  const showIntroSkipButtonRef = useRef(false)
+  const introAutoSeekedRef = useRef(false)
+  const creditsAutoSeekedRef = useRef(false)
+
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const hlsRef = useRef<Hls | null>(null)
@@ -154,7 +313,10 @@ export function Player(props: PlayerProps) {
   const [playMethod, setPlayMethod] = useState<PlayMethod | undefined>()
   const [currentUrl, setCurrentUrl] = useState<string | undefined>()
   const [liveStreamId, setLiveStreamId] = useState<string | undefined>()
-  const [playbackRate, setPlaybackRate] = useState(1)
+  const [playbackRate, setPlaybackRate] = useState<number>(() => {
+    const st = useSettingsStore.getState()
+    return st.rememberPlaybackRate ? (st.defaultPlaybackRate ?? 1) : 1
+  })
   const [playSessionId, setPlaySessionId] = useState<string | undefined>()
   const [resolvedStartTicks, setResolvedStartTicks] = useState<number>(0)
   const [itemInfo, setItemInfo] = useState<
@@ -307,6 +469,11 @@ export function Player(props: PlayerProps) {
       const { newMediaSourceId, overrideAudioIndex, overrideSubtitleIndex, subtitleMode, resumeSeconds } = opts
       setLoadState('loading')
       setError(null)
+      // 重置片头片尾状态（每次切源/重加载都视为"未处理过"）
+      showIntroSkipButtonRef.current = false
+      introAutoSeekedRef.current = false
+      creditsAutoSeekedRef.current = false
+      beforeEndedFiredRef.current = false
 
       try {
         // 1) 取用户上次位置（仅首次；切源时用 resumeSeconds）
@@ -333,22 +500,37 @@ export function Player(props: PlayerProps) {
             /* ignore */
           }
         }
-
-        const audioIdx = overrideAudioIndex ?? defaultAudioIndex
-        let subtitleIdx: number | undefined
-        if (subtitleMode === 'encode' && typeof overrideSubtitleIndex === 'number') {
-          subtitleIdx = overrideSubtitleIndex
-        } else if (defaultSubtitleIndex !== undefined && defaultSubtitleIndex !== null) {
-          subtitleIdx = defaultSubtitleIndex
+        // 续播回退 N 秒（不回退到负值）
+        if (startTicks > 0) {
+          const rewind = secondsToTicks(Math.max(0, resumeRewindSeconds || 0))
+          startTicks = Math.max(0, startTicks - rewind)
         }
-        setResolvedStartTicks(startTicks)
 
-        // 2) getPlaybackInfo
+        // 根据 playMode 设置三开关
+        const enableDirectPlay =
+          playModeSetting === 'auto' || playModeSetting === 'direct-play' || playModeSetting === 'direct-stream'
+        const enableDirectStream =
+          playModeSetting === 'auto' || playModeSetting === 'direct-stream'
+        const enableTranscoding =
+          playModeSetting === 'auto' || playModeSetting === 'transcode'
+
+        // 2) getPlaybackInfo（注入 maxBitrate / maxAudioChannels / 三开关）
         const info = await getPlaybackInfo(userId, itemId, newMediaSourceId ?? defaultMediaSourceId, {
           deviceProfile: buildDeviceProfile(),
           startTimeTicks: startTicks,
-          audioStreamIndex: audioIdx,
-          subtitleStreamIndex: subtitleIdx,
+          audioStreamIndex: overrideAudioIndex ?? defaultAudioIndex,
+          subtitleStreamIndex:
+            subtitleMode === 'encode' && typeof overrideSubtitleIndex === 'number'
+              ? overrideSubtitleIndex
+              : undefined,
+          maxStreamingBitrate: maxBitrateBps,
+          maxAudioChannels,
+          enableDirectPlay,
+          enableDirectStream,
+          enableTranscoding,
+          // 关闭直链时禁止服务器做流拷贝（纯转码）
+          allowVideoStreamCopy: playModeSetting !== 'transcode',
+          allowAudioStreamCopy: playModeSetting !== 'transcode',
         })
         if (info.errorCode) {
           throw new Error(`PlaybackInfo 返回错误：${info.errorCode}`)
@@ -360,28 +542,57 @@ export function Player(props: PlayerProps) {
         setPlaySessionId(info.playSessionId)
         playSessionIdRef.current = info.playSessionId
 
-        // 3) 选择 source / audio / subtitle
-        const src = pickDefaultSource(info.mediaSources, newMediaSourceId ?? defaultMediaSourceId)
+        // 3) 按 settings 选源
+        const src = pickDefaultSource(info.mediaSources, {
+          preferId: newMediaSourceId ?? defaultMediaSourceId,
+          playMode: playModeSetting,
+          strategy: sourceStrategy,
+        })
         if (!src) throw new Error('无法挑选默认媒体源')
         setSelectedMediaSource(src)
 
         const audioStreams = filterStreams(src.mediaStreams, 'Audio')
         const subtitleStreams = filterStreams(src.mediaStreams, 'Subtitle')
 
-        const finalAudio = pickDefaultAudio(
-          audioStreams,
-          overrideAudioIndex ?? defaultAudioIndex,
-          // mediaSource.defaultAudioStreamIndex 在类型里不存在；尝试从原始数据读取
-          (src as MediaSourceInfo & { defaultAudioStreamIndex?: number }).defaultAudioStreamIndex ?? null,
-        )
+        // 默认音轨：按首选语言排序
+        const finalAudio = pickDefaultAudio(audioStreams, {
+          preferredIndex: overrideAudioIndex ?? defaultAudioIndex,
+          mediaSourceDefaultIndex: src.defaultAudioStreamIndex ?? null,
+          preferredLanguages: preferredAudioLanguages,
+        })
         setSelectedAudioIndex(finalAudio)
+        const chosenAudio = audioStreams.find((s) => s.index === finalAudio)
 
-        // 字幕默认：encode 模式按 encode 来；external 按 defaultSubtitleIndex
+        // 默认字幕：若传入了 override（切换字幕时）使用；否则按策略选
         let finalSubtitle: number | null
+        let finalDelivery: 'external' | 'encode' = 'external'
         if (overrideSubtitleIndex !== undefined) {
           finalSubtitle = overrideSubtitleIndex
+          finalDelivery = subtitleMode ?? 'external'
+          // burn-in policy：若策略要求烧录，强制 encode
+          const stream = subtitleStreams.find((s) => s.index === overrideSubtitleIndex)
+          if (stream) {
+            const d = resolveDelivery(stream, burnInPolicy)
+            if (d === 'encode') finalDelivery = 'encode'
+            if (finalDelivery === 'encode') finalDelivery = 'encode'
+          }
+        } else if (typeof defaultSubtitleIndex === 'number') {
+          finalSubtitle = defaultSubtitleIndex
+          const stream = subtitleStreams.find((s) => s.index === defaultSubtitleIndex)
+          finalDelivery = stream ? resolveDelivery(stream, burnInPolicy) : 'external'
+        } else if (defaultSubtitleIndex === null) {
+          finalSubtitle = null
         } else {
-          finalSubtitle = pickDefaultSubtitle(subtitleStreams, defaultSubtitleIndex)
+          const r = pickDefaultSubtitle(subtitleStreams, {
+            preferred: undefined,
+            preferredLanguages: preferredSubtitleLanguages,
+            autoSelect: subtitleAutoSelect,
+            burnInPolicy,
+            forcedOnly: subtitleForcedOnly,
+            audioStream: chosenAudio,
+          })
+          finalSubtitle = r.index
+          finalDelivery = r.delivery
         }
         setSelectedSubtitleIndex(finalSubtitle)
 
@@ -392,8 +603,10 @@ export function Player(props: PlayerProps) {
           userId,
           playSessionId: info.playSessionId,
           audioStreamIndex: finalAudio,
-          subtitleStreamIndex: subtitleMode === 'encode' && typeof finalSubtitle === 'number' ? finalSubtitle : undefined,
+          subtitleStreamIndex:
+            finalDelivery === 'encode' && typeof finalSubtitle === 'number' ? finalSubtitle : undefined,
           startTimeTicks: startTicks,
+          maxBitrate: maxBitrateBps,
         })
         setCurrentUrl(resolved.url)
         setPlayMethod(resolved.method)
@@ -407,7 +620,24 @@ export function Player(props: PlayerProps) {
         setLoadState('error')
       }
     },
-    [itemId, userId, startPositionTicks, defaultMediaSourceId, defaultAudioIndex, defaultSubtitleIndex],
+    [
+      itemId,
+      userId,
+      startPositionTicks,
+      defaultMediaSourceId,
+      defaultAudioIndex,
+      defaultSubtitleIndex,
+      playModeSetting,
+      maxBitrateBps,
+      maxAudioChannels,
+      sourceStrategy,
+      preferredAudioLanguages,
+      preferredSubtitleLanguages,
+      subtitleAutoSelect,
+      burnInPolicy,
+      subtitleForcedOnly,
+      resumeRewindSeconds,
+    ],
   )
 
   // 首次挂载加载
@@ -530,7 +760,7 @@ export function Player(props: PlayerProps) {
     const oldTracks = video.querySelectorAll('track')
     oldTracks.forEach((t) => t.remove())
 
-    // loadedmetadata 后：保留起始位置，挂载 external 字幕
+    // loadedmetadata 后：保留起始位置，挂载 external 字幕，应用初始 playbackRate
     const onLoadedMeta = () => {
       if (cancelled) return
       const startSec = ticksToSeconds(resolvedStartTicks)
@@ -540,6 +770,12 @@ export function Player(props: PlayerProps) {
         } catch {
           /* ignore */
         }
+      }
+      // 应用初始倍速
+      try {
+        video.playbackRate = playbackRate
+      } catch {
+        /* ignore */
       }
       // 挂 external 字幕
       const src = selectedMediaSource
@@ -592,13 +828,66 @@ export function Player(props: PlayerProps) {
     }
     video.addEventListener('ended', onEndedH)
 
-    // beforeEnded 监听
+    // beforeEnded + 片头片尾跳过 监听（500ms 节流避免过度执行）
+    let lastTick = 0
     const onTimeU = () => {
       if (!video.duration || !isFinite(video.duration)) return
-      const left = video.duration - video.currentTime
+      const now = performance.now()
+      const doThrottled = now - lastTick >= 500
+      if (!doThrottled) {
+        // 非节流路径也要执行 beforeEnded（用户可能就差那 0.5 秒触发到阈值）
+        const left = video.duration - video.currentTime
+        if (!beforeEndedFiredRef.current && left > 0 && left <= beforeEndedThresholdSeconds) {
+          beforeEndedFiredRef.current = true
+          onBeforeEnded?.(left)
+        }
+        return
+      }
+      lastTick = now
+
+      const cur = video.currentTime
+      const dur = video.duration
+      const left = dur - cur
       if (!beforeEndedFiredRef.current && left > 0 && left <= beforeEndedThresholdSeconds) {
         beforeEndedFiredRef.current = true
         onBeforeEnded?.(left)
+      }
+      // —— 片头跳过 ——
+      if (enableIntroSkip && !introAutoSeekedRef.current) {
+        const a = Math.max(0, introSkipStartSeconds || 0)
+        const b = Math.max(a, introSkipEndSeconds || 0)
+        if (b - a > 2 && cur >= a && cur <= b) {
+          if (introSkipUseKeywordDetect) {
+            // Auto 模式：直接 seek 到片头尾
+            try {
+              video.currentTime = b + 0.1
+              introAutoSeekedRef.current = true
+              showToast('⏭ 已自动跳过片头')
+            } catch {
+              /* ignore */
+            }
+          } else if (!showIntroSkipButtonRef.current) {
+            // ShowButton 模式：显示一次 toast 作为"跳过按钮"提示
+            showIntroSkipButtonRef.current = true
+            showToast('⏭ 按 N 或点我立即跳过片头')
+            // 临时给用户一个一次性 toast 动作：5 秒内再按「跳」——此处通过 toast 文字做引导
+          }
+        }
+      }
+      // —— 片尾跳过：若有下一集则直接 seek 到末尾（触发 ended）——
+      if (enableCreditsSkip && !creditsAutoSeekedRef.current) {
+        const thresh = creditsSkipThresholdSeconds || 60
+        if (left > 0 && left <= thresh) {
+          // 仅在有下一集时自动跳（否则就让它正常结束）
+          if (hasNext) {
+            creditsAutoSeekedRef.current = true
+            try {
+              video.currentTime = Math.max(0, dur - 0.2)
+            } catch {
+              /* ignore */
+            }
+          }
+        }
       }
     }
     video.addEventListener('timeupdate', onTimeU)
@@ -620,6 +909,40 @@ export function Player(props: PlayerProps) {
     // 依赖 currentUrl 即可，其他（起始位置）应在 currentUrl 变后触发一次
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUrl])
+
+  /* ========== 字幕字体缩放：动态 ::cue CSS ========== */
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const styleId = 'ehp-cue-font-scale'
+    let styleEl = document.getElementById(styleId) as HTMLStyleElement | null
+    if (!styleEl) {
+      styleEl = document.createElement('style')
+      styleEl.id = styleId
+      document.head.appendChild(styleEl)
+    }
+    const scale = Math.max(0.7, Math.min(2.0, subtitleFontScale))
+    // 给播放器容器一个 scope，避免影响到页面其它 <video>
+    const scopeSelector = `#${container.id || (container.id = `ehp-player-${Math.random().toString(36).slice(2)}`)}`
+    styleEl.textContent =
+      scale === 1
+        ? ''
+        : `${scopeSelector} video::cue { font-size: ${Math.round(scale * 100)}%; line-height: 1.3; }`
+    return () => {
+      // 卸载组件不移除全局 style 以防还有别的 Player，缩放归 1 时清空即可
+      if (styleEl && scale === 1) styleEl.textContent = ''
+    }
+  }, [subtitleFontScale])
+
+  /* ========== 倍速记忆：用户手动调整倍速 → 若 rememberPlaybackRate 则持久化 ========== */
+  useEffect(() => {
+    if (!rememberPlaybackRate) return
+    // 只在用户手动改动时写入（通过与 defaultPlaybackRate 差异判断不可靠）——
+    // 这里简单策略：每次 playbackRate 改变且组件已过初始化阶段，则写回 defaultPlaybackRate
+    if (playbackRate > 0) {
+      setSettings('defaultPlaybackRate', playbackRate)
+    }
+  }, [playbackRate, rememberPlaybackRate, setSettings])
 
   /* ========== 流程 7：上报 ========== */
   usePlaybackReporting({

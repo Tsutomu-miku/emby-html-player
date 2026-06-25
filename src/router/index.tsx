@@ -6,6 +6,7 @@ import { HomePage } from '@/pages/HomePage'
 import { LibraryPage } from '@/pages/LibraryPage'
 import { ItemDetailPage } from '@/pages/ItemDetailPage'
 import { PlayerPage } from '@/pages/PlayerPage'
+import { SettingsPage } from '@/pages/SettingsPage'
 
 export const router = createBrowserRouter([
   {
@@ -24,6 +25,7 @@ export const router = createBrowserRouter([
       { path: 'library/:viewId', element: <LibraryPage /> },
       { path: 'item/:itemId', element: <ItemDetailPage /> },
       { path: 'player/:itemId', element: <PlayerPage /> },
+      { path: 'settings', element: <SettingsPage /> },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },

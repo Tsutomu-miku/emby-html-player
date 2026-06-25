@@ -46,11 +46,44 @@ export interface UserPolicy {
   maxParentalRating?: number
 }
 
+/** Emby 用户显示/播放配置（与 /Users/{id}/Configuration 返回的 Pascal 字段对齐，
+ *  由 http.ts 自动转为 camelCase） */
 export interface UserConfiguration {
-  displayMissingEpisodes?: boolean
+  maxParentalRating?: number
+  // 语言偏好
   subtitleLanguagePreference?: string
+  audioLanguagePreference?: string
   playDefaultAudioTrack?: boolean
+  displayMissingEpisodes?: boolean
+  groupedFolders?: boolean
+  subtitleMode?: SubtitleMode
+  displayCollectionsView?: boolean
+  enableLocalPassword?: boolean
+  hidePlayedInLatest?: boolean
+  rememberAudioSelections?: boolean
+  rememberSubtitleSelections?: boolean
+  enableNextEpisodeAutoPlay?: boolean
+  resumeRewindSeconds?: number
+  introSkipMode?: IntroSkipMode
+  quickConnectAvailable?: boolean
+  // 可选扩展字段：若 Emby 版本不含以下字段则保持 undefined
+  defaultAudioTrackExtendedLanguagePreference?: string
+  defaultSubtitleExtendedLanguagePreference?: string
 }
+
+export type SubtitleMode =
+  | 'Default'
+  | 'Always'
+  | 'OnlyForced'
+  | 'OnlyForeign'
+  | 'Smart'
+  | 'None'
+
+export type IntroSkipMode =
+  | 'None'
+  | 'Auto'
+  | 'ShowButton'
+  | 'Ask'
 
 /** 媒体库视图（Movies / TVShows / Music / Collections 等） */
 export interface BaseItemDto {

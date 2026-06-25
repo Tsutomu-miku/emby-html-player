@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Player } from '@/components/player/Player'
 import { useAuthStore } from '@/store/auth'
+import { useSettingsStore } from '@/store/settings'
 import { getItem, getEpisodes, markPlayed, markFavorite } from '@/api/library'
 import { posterUrl, backdropUrl, thumbUrl } from '@/api/images'
 import type { BaseItemDto } from '@/api/types'
@@ -21,6 +22,12 @@ export function PlayerPage() {
   const { itemId = '' } = useParams()
   const navigate = useNavigate()
   const userId = useAuthStore((s) => s.userId)
+
+  // ===== settings：下一集倒计时 / 自动跳下一集（只读，不写入远程）=====
+  const showNextEpisodeCountdown = useSettingsStore((s) => s.showNextEpisodeCountdown)
+  const nextEpisodeCountdownThreshold = useSettingsStore((s) => s.nextEpisodeCountdownThreshold)
+  const nextEpisodeCountdownSeconds = useSettingsStore((s) => s.nextEpisodeCountdownSeconds)
+  const autoPlayNextEpisode = useSettingsStore((s) => s.autoPlayNextEpisode)
 
   const playerContainerRef = useRef<HTMLDivElement>(null)
   const playerBindRef = useRef<HTMLDivElement | null>(null)
@@ -82,7 +89,7 @@ export function PlayerPage() {
   /* ========== 下一集卡片（"即将播放"） ========== */
   const [beforeEnded, setBeforeEnded] = useState(false)
   const [nextEpisode, setNextEpisode] = useState<BaseItemDto | null>(null)
-  const [countdown, setCountdown] = useState(10)
+  const [countdown, setCountdown] = useState(nextEpisodeCountdownSeconds)
   const [autoplayCancelled, setAutoplayCancelled] = useState(false)
   const autoPlayedRef = useRef(false)
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -112,15 +119,17 @@ export function PlayerPage() {
   const onBeforeEnded = useCallback(
     (_secondsLeft: number) => {
       if (!nextEpisode || beforeEnded || autoplayCancelled) return
+      // 设置：关闭倒计时卡片，则直接跳过（仍然给 onEnded 处理「自动跳下一集」）
+      if (!showNextEpisodeCountdown) return
       setBeforeEnded(true)
-      setCountdown(10)
+      setCountdown(Math.max(3, nextEpisodeCountdownSeconds))
       autoPlayedRef.current = false
       clearCountdown()
       countdownTimerRef.current = setInterval(() => {
         setCountdown((c) => {
           if (c <= 1) {
             clearCountdown()
-            if (!autoPlayedRef.current && !autoplayCancelled) {
+            if (!autoPlayedRef.current && !autoplayCancelled && autoPlayNextEpisode) {
               autoPlayedRef.current = true
               navigate(`/player/${nextEpisode.id}`, { replace: false })
             }
@@ -130,17 +139,26 @@ export function PlayerPage() {
         })
       }, 1000)
     },
-    [nextEpisode, beforeEnded, autoplayCancelled, clearCountdown, navigate],
+    [
+      nextEpisode,
+      beforeEnded,
+      autoplayCancelled,
+      clearCountdown,
+      navigate,
+      showNextEpisodeCountdown,
+      nextEpisodeCountdownSeconds,
+      autoPlayNextEpisode,
+    ],
   )
 
   const onEnded = useCallback(() => {
-    // 如果倒计时还没到 0，且用户没取消，则自动跳
-    if (nextEpisode && !autoPlayedRef.current && !autoplayCancelled) {
+    // 如果倒计时还没到 0，且用户没取消，且开启了自动跳下一集 → 立即跳
+    if (nextEpisode && !autoPlayedRef.current && !autoplayCancelled && autoPlayNextEpisode) {
       autoPlayedRef.current = true
       clearCountdown()
       navigate(`/player/${nextEpisode.id}`, { replace: false })
     }
-  }, [nextEpisode, autoplayCancelled, clearCountdown, navigate])
+  }, [nextEpisode, autoplayCancelled, clearCountdown, navigate, autoPlayNextEpisode])
 
   useEffect(() => () => clearCountdown(), [clearCountdown])
 
@@ -290,7 +308,7 @@ export function PlayerPage() {
           itemId={itemId}
           startPositionTicks={startPositionTicks}
           seriesId={item?.seriesId}
-          beforeEndedThresholdSeconds={40}
+          beforeEndedThresholdSeconds={nextEpisodeCountdownThreshold}
           onBeforeEnded={onBeforeEnded}
           onEnded={onEnded}
         >
