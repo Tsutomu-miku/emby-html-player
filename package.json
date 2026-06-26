@@ -1,12 +1,13 @@
 {
   "name": "emby-html-player",
-  "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
+  "homepage": "https://Tsutomu-miku.github.io/emby-html-player/",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "pnpm build && gh-pages -d dist -b gh-pages -t true -m 'chore(gh-pages): deploy build'"
   },
   "devDependencies": {
     "@types/node": "^26.0.0",
@@ -14,6 +15,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.5.1",
+    "gh-pages": "^6.3.0",
     "postcss": "^8.5.15",
     "tailwindcss": "^3.4.19",
     "typescript": "~6.0.2",
