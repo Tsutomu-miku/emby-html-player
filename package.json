@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "deploy": "pnpm build && gh-pages -d dist -b gh-pages -t true -m 'chore(gh-pages): deploy build'"
+    "deploy": "pnpm build && gh-pages -d dist -b gh-pages --dotfiles --nojekyll"
   },
   "devDependencies": {
     "@types/node": "^26.0.0",
