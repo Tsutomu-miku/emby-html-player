@@ -160,6 +160,41 @@ jobs:
         if: ${{ steps.native.outputs.can_package == 'true' }}
         run: pnpm ${{ matrix.package_script }}
 
+      - name: Smoke test Windows libmpv loader
+        if: ${{ matrix.platform == 'win32' && steps.native.outputs.can_package == 'true' }}
+        shell: pwsh
+        run: |
+          $nativeDir = Join-Path $PWD 'resources/native/win32/x64'
+          $dll = @('libmpv.dll', 'mpv-2.dll', 'libmpv-2.dll') |
+            ForEach-Object { Join-Path $nativeDir $_ } |
+            Where-Object { Test-Path $_ } |
+            Select-Object -First 1
+          if (-not $dll) {
+            throw "No bundled libmpv DLL found in $nativeDir"
+          }
+          Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class NativeLoader {
+            [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
+            public static extern IntPtr LoadLibraryEx(string lpFileName, IntPtr hFile, int dwFlags);
+            [DllImport("kernel32", SetLastError = true)]
+            public static extern bool FreeLibrary(IntPtr hModule);
+          }
+          '@
+          $LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR = 0x00000100
+          $LOAD_LIBRARY_SEARCH_DEFAULT_DIRS = 0x00001000
+          $handle = [NativeLoader]::LoadLibraryEx(
+            $dll,
+            [IntPtr]::Zero,
+            $LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR -bor $LOAD_LIBRARY_SEARCH_DEFAULT_DIRS)
+          if ($handle -eq [IntPtr]::Zero) {
+            $code = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+            throw "LoadLibraryEx failed for $dll with Win32 error $code"
+          }
+          [NativeLoader]::FreeLibrary($handle) | Out-Null
+          Write-Host "Loaded $dll"
+
       - name: Upload installer artifacts
         if: ${{ steps.native.outputs.can_package == 'true' }}
         uses: actions/upload-artifact@v4

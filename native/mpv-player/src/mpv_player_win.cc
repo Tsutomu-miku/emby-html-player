@@ -42,6 +42,7 @@ struct PlayerState {
 
 static MpvApi g_mpv = {};
 static ATOM g_windowClass = 0;
+static DWORD g_lastMpvLoadError = ERROR_SUCCESS;
 
 static napi_value Throw(napi_env env, const char* message) {
   napi_throw_error(env, NULL, message);
@@ -115,15 +116,32 @@ static bool LoadMpvDllFromAddonDirectory() {
   if (g_mpv.dll) return true;
   wchar_t directory[MAX_PATH];
   if (!GetAddonDirectory(directory, MAX_PATH)) return false;
+  g_lastMpvLoadError = ERROR_SUCCESS;
   const wchar_t* names[] = {L"libmpv.dll", L"mpv-2.dll", L"libmpv-2.dll"};
   for (const wchar_t* name : names) {
     wchar_t candidate[MAX_PATH];
     wcscpy_s(candidate, directory);
     wcsncat_s(candidate, MAX_PATH, name, _TRUNCATE);
-    g_mpv.dll = LoadLibraryW(candidate);
+    g_mpv.dll = LoadLibraryExW(
+      candidate,
+      NULL,
+      LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+    if (!g_mpv.dll) {
+      g_lastMpvLoadError = GetLastError();
+    }
     if (g_mpv.dll) break;
   }
   return g_mpv.dll != NULL;
+}
+
+static napi_value ThrowMpvLoadError(napi_env env) {
+  char message[256];
+  snprintf(
+    message,
+    sizeof(message),
+    "Failed to load bundled libmpv.dll from native resource directory. Win32 error: %lu",
+    (unsigned long)g_lastMpvLoadError);
+  return Throw(env, message);
 }
 
 static bool EnsureMpvApiLoaded() {
@@ -280,7 +298,7 @@ static napi_value Create(napi_env env, napi_callback_info info) {
   napi_value args[5];
   napi_get_cb_info(env, info, &argc, args, NULL, NULL);
   if (argc != 5) return Throw(env, "create(rootWindowHandle, x, y, width, height) requires 5 arguments");
-  if (!EnsureMpvApiLoaded()) return Throw(env, "Failed to load bundled libmpv.dll from native resource directory");
+  if (!EnsureMpvApiLoaded()) return ThrowMpvLoadError(env);
   if (!RegisterMpvWindowClass()) return Throw(env, "Failed to register MPV child window class");
 
   char* rootHandle = ReadString(env, args[0]);
