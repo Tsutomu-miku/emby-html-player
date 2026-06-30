@@ -1,6 +1,6 @@
 {
   "name": "emby-html-player",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Electron desktop client for browsing and playing Emby media libraries.",
   "type": "module",
   "homepage": "https://github.com/Tsutomu-miku/emby-html-player",

@@ -89,13 +89,40 @@ jobs:
             echo "No reviewed runtime found at vendor/mpv/${{ matrix.platform }}/${arch}; package step will verify required native files."
           fi
 
-      - name: Build and verify
+      - name: Check native runtime availability
+        id: native
+        shell: bash
+        run: |
+          arch="$(node -p "process.arch")"
+          native_dir="resources/native/${{ matrix.platform }}/${arch}"
+          can_package=false
+          if [ "${{ matrix.platform }}" = "darwin" ] && [ -f "$native_dir/libmpv.2.dylib" ]; then
+            can_package=true
+          fi
+          if [ "${{ matrix.platform }}" = "win32" ]; then
+            if { [ -f "$native_dir/libmpv.dll" ] || [ -f "$native_dir/mpv-2.dll" ] || [ -f "$native_dir/libmpv-2.dll" ]; } \
+              && [ -f "$native_dir/include/mpv/client.h" ] \
+              && [ -f "$native_dir/include/mpv/render.h" ] \
+              && [ -f "$native_dir/include/mpv/render_gl.h" ]; then
+              can_package=true
+            fi
+          fi
+          echo "can_package=$can_package" >> "$GITHUB_OUTPUT"
+          if [ "$can_package" != "true" ]; then
+            echo "::notice::Skipping ${{ matrix.name }} installer because reviewed libmpv runtime is missing. Configure NATIVE_RUNTIME_URL or vendor/mpv/${{ matrix.platform }}/${arch} to build it."
+          fi
+
+      - name: Verify TypeScript and lint
         run: |
           pnpm typecheck
           pnpm lint
-          pnpm ${{ matrix.package_script }}
+
+      - name: Build installer
+        if: ${{ steps.native.outputs.can_package == 'true' }}
+        run: pnpm ${{ matrix.package_script }}
 
       - name: Upload installer artifacts
+        if: ${{ steps.native.outputs.can_package == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: emby-desktop-player-${{ matrix.platform }}-${{ runner.arch }}
@@ -104,7 +131,7 @@ jobs:
             !release/**/*.blockmap
 
       - name: Publish GitHub release
-        if: ${{ startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true') }}
+        if: ${{ steps.native.outputs.can_package == 'true' && (startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')) }}
         uses: softprops/action-gh-release@v2
         with:
           draft: true

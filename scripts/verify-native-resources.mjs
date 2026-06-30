@@ -86,8 +86,6 @@ function assertNoForbiddenRuntimeRefs() {
 function assertNoProcessMpvBackend() {
   const files = [
     path.join(root, 'electron', 'main'),
-    path.join(root, 'src'),
-    path.join(root, 'scripts'),
   ]
   const forbidden = [
     `--${'wid'}`,

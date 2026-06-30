@@ -76,6 +76,10 @@ the repository secret `NATIVE_RUNTIME_URL` for tag-triggered release builds.
 macOS can use the same zip layout; if no macOS runtime is provided, CI falls
 back to Homebrew `mpv` to bundle libmpv on the macOS runner.
 
+If the Windows runtime is not provided, the Windows job still runs typecheck and
+lint, then skips installer packaging with a workflow notice. It cannot produce
+an `.exe` until the reviewed DLLs and headers above are available.
+
 ## Emby Identity
 
 The renderer never constructs media identity headers. MPV media headers are
