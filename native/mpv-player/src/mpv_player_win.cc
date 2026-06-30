@@ -1,5 +1,6 @@
 #include <node_api.h>
 
+#include <windows.h>
 #include <GL/gl.h>
 #include <mpv/client.h>
 #include <mpv/render.h>
@@ -8,7 +9,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <windows.h>
 
 #define EHP_RENDER_MESSAGE (WM_APP + 191)
 
