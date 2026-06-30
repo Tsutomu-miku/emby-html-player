@@ -65,7 +65,7 @@ export function Sidebar() {
         <span className="inline-block w-7 h-7 rounded-md bg-jelly-accent text-white flex items-center justify-center text-sm font-bold">
           E
         </span>
-        <span className="hidden sm:inline">Emby H5</span>
+        <span className="hidden sm:inline">Emby Desktop</span>
       </Link>
 
       {/* 首页导航 */}

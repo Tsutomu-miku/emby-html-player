@@ -1,31 +1,39 @@
 # Native Playback Release
 
-The app must bundle its MPV runtime. It must not depend on a player installed on
-the user's machine.
+The app must bundle its libmpv runtime. It must not depend on a player installed
+on the user's machine and must not spawn `mpv` as a separate process.
 
 ## Runtime Layout
 
-Put reviewed MPV runtime artifacts in `vendor/mpv/<platform>/<arch>/`, then stage
-them into `resources/native/<platform>/<arch>/`.
+Packaged builds load native playback artifacts from
+`resources/native/<platform>/<arch>/`.
 
-Required binary names:
+Required files:
 
-- macOS: `vendor/mpv/darwin/arm64/mpv` or `vendor/mpv/darwin/x64/mpv`
-- Linux: `vendor/mpv/linux/x64/mpv`
-- Windows: `vendor/mpv/win32/x64/mpv.exe`
+- macOS: `ehp_mpv_player.node`, `libmpv.2.dylib`, and every bundled `*.dylib`
+- Linux: `ehp_mpv_player.node`, `libmpv.so`, and every bundled `*.so*`
+- Windows: `ehp_mpv_player.node`, `libmpv.dll`, and every bundled `*.dll`
 
-The directory must also contain the dynamic libraries needed by that binary:
-
-- macOS: `*.dylib`
-- Linux: `*.so*`
-- Windows: `*.dll`
+The runtime is embedded through `libmpv`; the app intentionally does not search
+`PATH`, Homebrew, apt, winget, or user-installed player locations.
 
 ## Release Steps
 
-1. Add the platform runtime under `vendor/mpv/<platform>/<arch>/`.
-2. Run `pnpm stage:native -- --platform=<platform> --arch=<arch>`.
+macOS:
+
+1. Bundle reviewed libmpv dylibs into `resources/native/darwin/<arch>/`:
+   `pnpm bundle:native:mac -- --source=/path/to/libmpv.2.dylib --arch=<arch>`.
+2. Build and copy the native host-view addon:
+   `pnpm build:native:player`.
 3. Run `pnpm verify:native`.
-4. Run `pnpm package:<platform>`.
+4. Run `pnpm package:mac`.
+
+Linux / Windows:
+
+1. Add reviewed `ehp_mpv_player.node` and libmpv runtime artifacts under
+   `resources/native/<platform>/<arch>/`.
+2. Run `pnpm verify:native`.
+3. Run `pnpm package:<platform>`.
 
 `pnpm package`, `pnpm package:mac`, `pnpm package:linux`, and `pnpm package:win`
 all run `verify:native` first. Packaging fails if the runtime is missing.

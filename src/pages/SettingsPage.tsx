@@ -57,7 +57,7 @@ export function SettingsPage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-bold text-white">设置</h1>
         <p className="text-sm text-jelly-muted">
-          默认情况下所有设置只保存在<strong>本浏览器 localStorage</strong>（key：
+          默认情况下所有设置只保存在<strong>本机应用存储</strong>（key：
           <code className="mx-1 px-1 py-0.5 bg-white/5 rounded font-mono text-xs">ehp_settings</code>
           ），不会写入 Emby 服务器的用户配置。如需多端共享，请使用页面底部的「同步到 Emby 服务器」按钮。
         </p>

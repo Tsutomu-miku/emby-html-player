@@ -105,7 +105,7 @@ export function LoginPage() {
         <div>
           <div className="text-2xl font-bold">登录到 Emby 服务器</div>
           <div className="text-sm text-jelly-muted mt-1">
-            在网页里直接浏览和播放你的 Emby 媒体库
+            在桌面端直接浏览和播放你的 Emby 媒体库
           </div>
         </div>
         <label className="block space-y-1.5">
@@ -169,8 +169,8 @@ export function LoginPage() {
         </button>
         <div className="text-xs text-jelly-muted leading-relaxed">
           提示：<br />
-          · 凭据仅保存在你的浏览器 localStorage，本项目不会把它们发送到任何第三方服务器。<br />
-          · 如果页面是 HTTPS，Emby 服务器也需要是 HTTPS，否则浏览器会拦截媒体请求。
+          · 凭据仅保存在本机应用存储中，本项目不会把它们发送到任何第三方服务器。<br />
+          · 跨域响应头和 Emby 播放器身份由 Electron 主进程统一处理。
         </div>
       </form>
     </div>

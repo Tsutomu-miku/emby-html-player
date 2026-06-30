@@ -18,7 +18,7 @@ export function FooterSection({
             ⚠️「同步到 Emby 服务器」会<strong>写入该账号的用户配置</strong>
             （字幕语言、自动跳下一集、片头跳过模式、续播回退秒数等），仅在你希望<strong>多端共享</strong>这些设置时使用。
             <br />
-            默认情况下所有设置仅存储在本浏览器 localStorage（
+            默认情况下所有设置仅存储在本机应用存储（
             <code className="mx-1 px-1 py-0.5 bg-white/5 rounded font-mono text-xs">ehp_settings</code>
             ）。
           </div>

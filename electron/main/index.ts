@@ -103,7 +103,7 @@ async function createWindow() {
     height: 900,
     minWidth: 1024,
     minHeight: 640,
-    title: 'Emby H5 Player',
+    title: 'Emby Desktop Player',
     backgroundColor: '#101114',
     autoHideMenuBar: true,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',

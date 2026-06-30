@@ -13,7 +13,7 @@ export function LocalSection() {
   return (
     <section className="card p-5 md:p-6 space-y-4">
       <header>
-        <h2 className="text-lg font-semibold">本地（仅本浏览器）</h2>
+        <h2 className="text-lg font-semibold">本地（仅本机）</h2>
         <p className="text-sm text-jelly-muted">
           与界面外观、性能相关的偏好；这些不会同步到 Emby 服务器。
         </p>
@@ -31,13 +31,13 @@ export function LocalSection() {
         </FormRow>
 
         <FormRow
-          label="Service Worker 静态资源缓存"
-          hint="仅保存开关；SW 注册逻辑将在后续版本启用"
+          label="静态资源缓存"
+          hint="仅保存开关；缓存策略将在后续版本启用"
         >
           <Switch
             checked={enableStaticResourceCache}
             onChange={(v) => set('enableStaticResourceCache', v)}
-            label="启用 Service Worker 静态资源缓存（下次生效）"
+            label="启用静态资源缓存（下次生效）"
           />
         </FormRow>
 
