@@ -76,9 +76,10 @@ the repository secret `NATIVE_RUNTIME_URL` for tag-triggered release builds.
 macOS can use the same zip layout; if no macOS runtime is provided, CI falls
 back to Homebrew `mpv` to bundle libmpv on the macOS runner.
 
-If the Windows runtime is not provided, the Windows job still runs typecheck and
-lint, then skips installer packaging with a workflow notice. It cannot produce
-an `.exe` until the reviewed DLLs and headers above are available.
+Windows uses the same reviewed-runtime zip when it is provided. If no reviewed
+runtime is provided, CI installs MSYS2 `mingw-w64-x86_64-mpv`, copies
+`libmpv-2.dll`, its dependent DLLs, and the required headers into
+`resources/native/win32/x64/`, then builds the `.exe` installer.
 
 ## Emby Identity
 

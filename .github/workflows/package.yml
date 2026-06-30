@@ -50,6 +50,13 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - uses: msys2/setup-msys2@v2
+        if: ${{ matrix.platform == 'win32' }}
+        with:
+          msystem: MINGW64
+          update: true
+          install: mingw-w64-x86_64-mpv
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -63,6 +70,38 @@ jobs:
           with zipfile.ZipFile("native-runtime.zip") as z:
               z.extractall(".")
           PY
+
+      - name: Bundle Windows libmpv fallback
+        if: ${{ matrix.platform == 'win32' }}
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          workspace="$(cygpath -u "$GITHUB_WORKSPACE")"
+          target="$workspace/resources/native/win32/x64"
+          if [ -d "$workspace/vendor/mpv/win32/x64" ]; then
+            echo "Reviewed Windows runtime exists; stage:native will use it."
+            exit 0
+          fi
+          mkdir -p "$target/include/mpv"
+          cp /mingw64/include/mpv/client.h "$target/include/mpv/client.h"
+          cp /mingw64/include/mpv/render.h "$target/include/mpv/render.h"
+          cp /mingw64/include/mpv/render_gl.h "$target/include/mpv/render_gl.h"
+          declare -A copied=()
+          copy_dll() {
+            local source="$1"
+            local name
+            name="$(basename "$source")"
+            if [ -n "${copied[$name]:-}" ]; then
+              return
+            fi
+            copied[$name]=1
+            cp -f "$source" "$target/$name"
+            while IFS= read -r dep; do
+              copy_dll "$dep"
+            done < <(ldd "$source" | awk '{ for (i = 1; i <= NF; i++) if ($i ~ /^\/mingw64\/bin\/.*\.dll$/) print $i }')
+          }
+          copy_dll /mingw64/bin/libmpv-2.dll
+          find "$target" -maxdepth 1 -iname '*.dll' -print | sort
 
       - name: Install macOS libmpv build headers
         if: ${{ matrix.platform == 'darwin' }}
