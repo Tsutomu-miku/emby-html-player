@@ -60,7 +60,7 @@ export function getItems(
   // sortBy 这个 key 本身会被 camelToPascal 变为 SortBy（正好符合 Emby 约定）。
   const q = withDefaultFields({ ...params, userId, recursive: params.recursive ?? true })
   return request<QueryResult<BaseItemDto>>(`/Users/${userId}/Items`, {
-    params: q as Record<string, any>,
+    params: q as Record<string, string | number | boolean | undefined>,
   })
 }
 
@@ -71,7 +71,7 @@ export function getItem(
   params: GetItemsParams = {},
 ): Promise<BaseItemDto> {
   return request<BaseItemDto>(`/Users/${userId}/Items/${itemId}`, {
-    params: withDefaultFields(params) as Record<string, any>,
+    params: withDefaultFields(params) as Record<string, string | number | boolean | undefined>,
   })
 }
 
@@ -119,7 +119,7 @@ export function getResumeItems(
       imageTypeLimit: 1,
       mediaTypes: 'Video',
       limit: params.limit ?? 24,
-    } as Record<string, any>,
+    },
   })
 }
 
@@ -137,7 +137,7 @@ export function getNextUp(
       // key 经 camelToPascal 变为 DisableFirstEpisode
       disableFirstEpisode: true,
       nextUpDateCutoff: '0001-01-01T00:00:00Z',
-    } as Record<string, any>,
+    },
   })
 }
 
@@ -154,7 +154,7 @@ export function getLatestItems(
       ...withDefaultFields(params),
       limit: params.limit ?? 24,
       groupItemsIntoCollections: true,
-    } as Record<string, any>,
+    },
   })
 }
 
@@ -169,7 +169,7 @@ export function getSimilarItems(
       userId,
       ...withDefaultFields(params),
       limit: params.limit ?? 24,
-    } as Record<string, any>,
+    },
   })
 }
 
@@ -198,7 +198,7 @@ export function getRecommendations(
       enableImages: true,
       imageTypeLimit: 1,
     },
-  }) as Promise<any>
+  })
 }
 
 /** 类型种类（Genres） */
@@ -210,7 +210,7 @@ export function getGenres(
     params: {
       userId,
       ...withDefaultFields(params),
-    } as Record<string, any>,
+    },
   })
 }
 

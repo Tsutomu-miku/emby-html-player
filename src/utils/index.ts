@@ -1,23 +1,11 @@
 // 把 time.ts 中的常用工具重新导出，方便 UI / hooks 使用统一入口
 export * from './time'
 
-/** 简单组合 className 的工具 */
-export function cx(
-  ...parts: (string | false | null | undefined | Record<string, boolean | undefined>)[]
-): string {
-  const out: string[] = []
-  for (const p of parts) {
-    if (!p) continue
-    if (typeof p === 'string') {
-      out.push(p)
-      continue
-    }
-    for (const k of Object.keys(p)) {
-      if ((p as Record<string, boolean | undefined>)[k]) out.push(k)
-    }
-  }
-  return out.join(' ')
-}
+/**
+ * 组合 className 的工具。
+ * 原先是自写实现，现直接重导出 npm clsx（行为一致，零成本切换）。
+ */
+export { default as cx } from 'clsx'
 
 /** 规范化服务器地址输入 */
 export function normalizeServerUrl(input: string): string {

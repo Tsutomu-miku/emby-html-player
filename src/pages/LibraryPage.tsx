@@ -97,7 +97,7 @@ export function LibraryPage() {
   }, [userId, viewId, startIndex, filter, currentView?.collectionType])
 
   useEffect(() => {
-    doLoad()
+    void doLoad()
   }, [doLoad])
 
   // 无限滚动：IntersectionObserver
@@ -161,7 +161,7 @@ export function LibraryPage() {
           message={error.message}
           onRetry={() => {
             setError(null)
-            doLoad()
+            void doLoad()
           }}
         />
       )}

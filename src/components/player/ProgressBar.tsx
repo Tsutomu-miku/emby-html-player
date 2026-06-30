@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { cx } from '@/utils'
 import { formatDuration } from '@/utils/time'
+import type { PlayerControl } from './backends/control'
 
 export interface ProgressBarProps {
   video: HTMLVideoElement | null
+  control?: PlayerControl
   className?: string
 }
 
@@ -14,7 +16,7 @@ export interface ProgressBarProps {
  * - 支持点击跳转 + 指针拖拽（文档级监听，可拖出轨道）
  * - 悬停显示时间气泡
  */
-export function ProgressBar({ video, className }: ProgressBarProps) {
+export function ProgressBar({ video, control, className }: ProgressBarProps) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [current, setCurrent] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -24,6 +26,12 @@ export function ProgressBar({ video, className }: ProgressBarProps) {
   const wasPausedRef = useRef(false)
 
   useEffect(() => {
+    if (control) {
+      setCurrent(control.currentTime)
+      setDuration(control.duration)
+      setBufferedEnd(control.bufferedEnd)
+      return
+    }
     if (!video) return
     const onTime = () => {
       if (draggingRef.current) return
@@ -50,12 +58,13 @@ export function ProgressBar({ video, className }: ProgressBarProps) {
       video.removeEventListener('durationchange', onLoaded)
       video.removeEventListener('progress', onProgress)
     }
-  }, [video])
+  }, [video, control])
 
   const seekByRatio = (ratio: number) => {
     const r = Math.max(0, Math.min(1, ratio))
-    if (!video || !isFinite(duration) || duration <= 0) return
-    video.currentTime = r * duration
+    if (!isFinite(duration) || duration <= 0) return
+    control?.seek(r * duration)
+    if (!control && video) video.currentTime = r * duration
     setCurrent(r * duration)
   }
 
@@ -66,10 +75,11 @@ export function ProgressBar({ video, className }: ProgressBarProps) {
   }
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!video) return
+    if (!video && !control) return
     draggingRef.current = true
-    wasPausedRef.current = video.paused
-    video.pause()
+    wasPausedRef.current = control ? control.paused : video?.paused === true
+    control?.pause()
+    if (!control) video?.pause()
     seekByRatio(clientXToRatio(e.clientX))
     ;(e.target as Element).setPointerCapture?.(e.pointerId)
   }
@@ -85,9 +95,14 @@ export function ProgressBar({ video, className }: ProgressBarProps) {
   const onPointerLeave = () => setHoverRatio(null)
 
   const onPointerUp = () => {
-    if (draggingRef.current && video) {
+    if (draggingRef.current && (video || control)) {
       draggingRef.current = false
-      if (!wasPausedRef.current) void video.play().catch(() => {})
+      if (!wasPausedRef.current) {
+        if (control) void control.play()
+        else if (video) void video.play().catch((err: unknown) => {
+          console.warn('[Player] resume after seek failed', err)
+        })
+      }
     }
   }
 
@@ -128,7 +143,7 @@ export function ProgressBar({ video, className }: ProgressBarProps) {
       </div>
 
       {/* hover 时间气泡 */}
-      {hoverRatio != null && (
+      {hoverRatio !== null && (
         <div
           className="absolute -top-8 px-2 py-0.5 text-xs rounded bg-black/80 text-white pointer-events-none -translate-x-1/2 whitespace-nowrap"
           style={{ left: `${(hoverRatio * 100).toFixed(2)}%` }}

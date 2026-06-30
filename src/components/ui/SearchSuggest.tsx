@@ -23,22 +23,24 @@ export function SearchSuggest({ className }: { className?: string }) {
 
   const doSearch = useMemo(
     () =>
-      debounce(async (query: string) => {
-        if (!query.trim() || !userId) {
-          setHints([])
-          setLoading(false)
-          return
-        }
-        try {
-          setLoading(true)
-          const res = await searchHints(userId, query, { limit: 10 })
-          setHints((res.searchHints || []).slice(0, 10))
-        } catch (e) {
-          console.error('[searchHints] failed:', e)
-          setHints([])
-        } finally {
-          setLoading(false)
-        }
+      debounce((query: string) => {
+        void (async () => {
+          if (!query.trim() || !userId) {
+            setHints([])
+            setLoading(false)
+            return
+          }
+          try {
+            setLoading(true)
+            const res = await searchHints(userId, query, { limit: 10 })
+            setHints((res.searchHints || []).slice(0, 10))
+          } catch (e) {
+            console.error('[searchHints] failed:', e)
+            setHints([])
+          } finally {
+            setLoading(false)
+          }
+        })()
       }, 300),
     [userId],
   )
@@ -64,14 +66,14 @@ export function SearchSuggest({ className }: { className?: string }) {
     // 回车：若有第一个结果则跳转
     if (hints.length > 0) {
       const first = hints[0]
-      navigate(`/item/${first.itemId}`)
+      void navigate(`/item/${first.itemId}`)
       setTerm('')
       setOpen(false)
     }
   }
 
   function handlePick(hint: SearchHint) {
-    navigate(`/item/${hint.itemId}`)
+    void navigate(`/item/${hint.itemId}`)
     setTerm('')
     setOpen(false)
   }

@@ -46,13 +46,10 @@ export function PosterCard({
   const navigate = useNavigate()
 
   const aspect = SHAPE_ASPECT[shape]
-  let imgSrc = ''
-  if (shape === 'backdrop') {
-    imgSrc = backdropUrl(item, { quality: 70, placeholderOnMissing: true })
-  } else {
-    // poster 或 square 都用 Primary（海报图）
-    imgSrc = posterUrl(item, { quality: 70, placeholderOnMissing: true })
-  }
+  const imgSrc =
+    shape === 'backdrop'
+      ? backdropUrl(item, { quality: 70, placeholderOnMissing: true })
+      : posterUrl(item, { quality: 70, placeholderOnMissing: true })
 
   // 进度条
   const position = item.userData?.playbackPositionTicks ?? 0
@@ -132,7 +129,7 @@ export function PosterCard({
           onClick={(e) => {
             e.preventDefault()
             e.stopPropagation()
-            navigate(`/player/${item.id}`)
+            void navigate(`/player/${item.id}`)
           }}
           className="absolute bottom-2 right-2 z-10 w-8 h-8 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm hover:bg-jelly-accent"
           aria-label="播放"

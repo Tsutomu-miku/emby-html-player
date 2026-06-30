@@ -80,9 +80,17 @@ export function camelToPascalKey(key: string): string {
   return key[0].toUpperCase() + key.slice(1)
 }
 
-/** 是否为 ProviderIds/providerIds 字段（其内部 key 保持原样） */
-function isProviderIdsField(key: string): boolean {
-  return key === 'ProviderIds' || key === 'providerIds'
+/**
+ * 是否为内部 key 应保持原样的字段（PascalCase 枚举值，不是字段名）。
+ * - ProviderIds/providerIds：外部供应商 ID 前缀（'ImdbId'、'TmdbId'…）
+ * - ImageTags/imageTags：图片类型枚举（'Primary'、'Backdrop'、'Logo'、'Thumb'…），
+ *   与 src/api/images.ts 的 ImageType 类型一致
+ */
+function isEnumMapField(key: string): boolean {
+  return (
+    key === 'ProviderIds' || key === 'providerIds' ||
+    key === 'ImageTags' || key === 'imageTags'
+  )
 }
 
 /**
@@ -104,8 +112,8 @@ export function pascalToCamel<T = unknown>(value: unknown): T {
     for (const k of Object.keys(src)) {
       const v = src[k]
       const newKey = pascalToCamelKey(k)
-      if (isProviderIdsField(k)) {
-        // 供应商 ID 内部 key 保持原样（如 "ImdbId" -> "ImdbId"，不要被转成 "imdbId"）
+      if (isEnumMapField(k)) {
+        // 枚举 map 内部 key 保持原样（如 "ImdbId"、"Primary" 不被转成 "imdbId"、"primary"）
         out[newKey] = v && typeof v === 'object' && !Array.isArray(v)
           ? { ...(v as Record<string, unknown>) }
           : v
@@ -135,8 +143,8 @@ export function camelToPascal(value: unknown): unknown {
     for (const k of Object.keys(src)) {
       const v = src[k]
       const newKey = camelToPascalKey(k)
-      if (isProviderIdsField(k)) {
-        // 供应商 ID 内部 key 保持原样
+      if (isEnumMapField(k)) {
+        // 枚举 map 内部 key 保持原样
         out[newKey] = v && typeof v === 'object' && !Array.isArray(v)
           ? { ...(v as Record<string, unknown>) }
           : v

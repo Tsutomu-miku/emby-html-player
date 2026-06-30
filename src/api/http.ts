@@ -22,6 +22,18 @@ function isFullHttpUrl(s: string): boolean {
   return /^https?:\/\//i.test(s)
 }
 
+/** HTTP 请求失败时抛出的错误子类，携带 status 与 body 便于业务层判断 */
+class HttpError extends Error {
+  status: number
+  body: string
+  constructor(message: string, status: number, body: string, options?: ErrorOptions) {
+    super(message, options)
+    this.name = 'HttpError'
+    this.status = status
+    this.body = body
+  }
+}
+
 /** 将对象转为 query string，忽略 undefined/null/空串值。 */
 export function buildQuery(
   params: Record<string, string | number | boolean | undefined>,
@@ -151,6 +163,7 @@ export async function request<T = unknown>(
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeout)
+  const logUrl = redactUrl(url, accessToken, deviceId)
 
   let response: Response
   try {
@@ -162,13 +175,21 @@ export async function request<T = unknown>(
       signal: controller.signal,
     })
   } catch (err) {
+    console.error(
+      `[http] ✗ fetch threw ${method} ${logUrl}`,
+      {
+        errName: err instanceof Error ? err.name : typeof err,
+        errMessage: err instanceof Error ? err.message : String(err),
+        errCause: err instanceof Error ? (err as Error & { cause?: unknown }).cause : undefined,
+      },
+    )
     // 分类常见错误，给出更友好提示
     if (err instanceof Error) {
       if (err.name === 'AbortError') {
-        throw new Error('请求已超时')
+        throw new Error('请求已超时', { cause: err })
       }
       if (err instanceof TypeError) {
-        throw new Error('网络异常，无法连接服务器')
+        throw new Error('网络异常，无法连接服务器', { cause: err })
       }
     }
     throw err
@@ -180,25 +201,28 @@ export async function request<T = unknown>(
     let text = ''
     try {
       text = await response.text()
-    } catch {
-      /* ignore */
+    } catch (err) {
+      console.warn('[http] failed to read error response body', err)
     }
-    const err = new Error(
-      `HTTP ${response.status} ${response.statusText}${text ? `: ${text.slice(0, 300)}` : ''}`,
+    console.warn(
+      `[http] ← HTTP ${response.status} ${method} ${logUrl}`,
+      { statusText: response.statusText, bodyPreview: text.slice(0, 240) },
     )
-    ;(err as any).status = response.status
-    ;(err as any).body = text
+    const err = new HttpError(
+      `HTTP ${response.status} ${response.statusText}${text ? `: ${text.slice(0, 300)}` : ''}`,
+      response.status,
+      text,
+    )
     if (response.status === 401) {
       // 凭据失效，登出
       try {
         useAuthStore.getState().logout()
-      } catch {
-        /* ignore */
+      } catch (err) {
+        console.warn('[http] logout after 401 failed', err)
       }
     }
     throw err
   }
-
   if (expect === 'raw') return response as unknown as T
   if (expect === 'blob') return (await response.blob()) as unknown as T
   if (expect === 'text') return (await response.text()) as unknown as T
@@ -209,19 +233,51 @@ export async function request<T = unknown>(
     // 某些接口返回空 204
     return undefined as unknown as T
   }
-  const raw = await response.json()
+  const raw: unknown = await response.json()
   return pascalToCamel<T>(raw)
 }
 
+/**
+ * 构造 X-Emby-Authorization 头。
+ *
+ * Client 必须与主进程 UA（Emby Web/4.7.10.0）保持一致。
+ * 注意：不能用 "Emby Theater"——某些 Emby 反代（如 genshin.biliblili.uk）对 Theater
+ * 客户端做特殊路由，会直接返回 404；"Emby Web" 走标准 API 路由。
+ * 这不是鉴权——真正的鉴权是登录后拿到的 Token。
+ */
 function buildAuthorizationHeader(deviceId: string, accessToken?: string): string {
   const parts: string[] = [
-    `MediaBrowser Client="Emby H5 Player"`,
-    `Device="Web Browser"`,
+    `MediaBrowser Client="Emby Web"`,
+    `Device="${detectDeviceName()}"`,
     `DeviceId="${deviceId}"`,
-    `Version="0.1.0"`,
+    `Version="4.7.10.0"`,
   ]
   if (accessToken) {
     parts.push(`Token="${accessToken}"`)
   }
   return parts.join(', ')
+}
+
+function redactUrl(url: string, accessToken: string, deviceId: string): string {
+  if (!URL.canParse(url)) {
+    return redactSecret(redactSecret(url, accessToken), deviceId)
+  }
+  const parsed = new URL(url)
+  if (parsed.searchParams.has('api_key')) parsed.searchParams.set('api_key', 'redacted')
+  if (parsed.searchParams.has('DeviceId')) parsed.searchParams.set('DeviceId', 'redacted')
+  return parsed.toString()
+}
+
+function redactSecret(value: string, secret: string): string {
+  if (!secret) return value
+  return value.split(secret).join('redacted')
+}
+
+/** 从 navigator.platform 推断设备名，用于 X-Emby-Authorization 的 Device 字段 */
+function detectDeviceName(): string {
+  const p = navigator.platform || ''
+  if (/mac/i.test(p)) return 'macOS'
+  if (/win/i.test(p)) return 'Windows'
+  if (/linux/i.test(p)) return 'Linux'
+  return 'Desktop'
 }

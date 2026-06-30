@@ -44,7 +44,7 @@ export function Sidebar() {
 
   function handleLogout() {
     logout()
-    navigate('/login', { replace: true })
+    void navigate('/login', { replace: true })
   }
 
   return (

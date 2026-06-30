@@ -32,13 +32,11 @@ export async function authenticateByName(params: {
     {
       method: 'POST',
       // 注意：这里不需要手动写 Username/Pw，统一用 camelCase，由 http.ts 转换
+      // 注意：不要在 headers 里再手动写 X-Emby-Authorization，
+      // http.ts 会按统一规则（Client / Device / Version / Token）构造。
       body: {
         username: params.username,
         pw: params.pw,
-      },
-      headers: {
-        'X-Emby-Authorization':
-          'MediaBrowser Client="Emby H5 Player", Device="Web Browser", DeviceId="unknown", Version="0.1.0"',
       },
     },
   )
@@ -70,7 +68,7 @@ export function getUserViews(userId: string): Promise<{ items: UserView[]; total
       // 'fields' 会被转为 'Fields'，值保持不变（符合 Emby 约定）
       fields: 'PrimaryImageAspectRatio,BaseItemName,Overview',
     },
-  }) as Promise<{ items: UserView[]; totalRecordCount: number }>
+  })
 }
 
 export interface UserView extends NameIdPair {

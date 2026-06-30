@@ -39,36 +39,62 @@ function generateDeviceId(): string {
     .join('')
   try {
     localStorage.setItem('ehp_device_id', id)
-  } catch {
-    /* ignore */
+  } catch (error) {
+    console.warn('[auth] failed to persist device id', error)
   }
   return id
 }
 
+function syncMainProcessAuth(state: {
+  server: string
+  accessToken: string
+  deviceId: string
+}): void {
+  if (!state.server || !state.deviceId) return
+  window.ehp?.setEmbyAuth({
+    server: state.server,
+    accessToken: state.accessToken,
+    deviceId: state.deviceId,
+  })
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       server: '',
       userId: '',
       accessToken: '',
       deviceId: generateDeviceId(),
       user: undefined,
-      login: (server, userId, accessToken, user) =>
-        set({
-          server: server.replace(/\/+$/, ''),
-          userId,
-          accessToken,
-          user,
-        }),
+      login: (server, userId, accessToken, user) => {
+        const normalized = server.replace(/\/+$/, '')
+        // 同步给主进程：webRequest 会优先把 API 与媒体流都改成 Emby 播放器身份。
+        syncMainProcessAuth({ server: normalized, accessToken, deviceId: get().deviceId })
+        set({ server: normalized, userId, accessToken, user })
+      },
       setUser: (user) => set({ user }),
-      logout: () =>
+      logout: () => {
+        syncMainProcessAuth({
+          server: get().server,
+          accessToken: '',
+          deviceId: get().deviceId,
+        })
         set({
           userId: '',
           accessToken: '',
           user: undefined,
           // 保留 server 方便重连
-        }),
-      setServer: (server) => set({ server: server.replace(/\/+$/, '') }),
+        })
+      },
+      setServer: (server) => {
+        const normalized = server.replace(/\/+$/, '')
+        syncMainProcessAuth({
+          server: normalized,
+          accessToken: get().accessToken,
+          deviceId: get().deviceId,
+        })
+        set({ server: normalized })
+      },
     }),
     {
       name: 'ehp_auth',
@@ -79,6 +105,9 @@ export const useAuthStore = create<AuthState>()(
         deviceId: s.deviceId,
         user: s.user,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state) syncMainProcessAuth(state)
+      },
     },
   ),
 )

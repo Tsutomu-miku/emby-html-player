@@ -23,6 +23,10 @@ function collectBufferedRanges(video: HTMLVideoElement): PlaybackProgressEvent['
   return out
 }
 
+function logReportingFailure(action: string, err: unknown): void {
+  console.warn(`[playback/reporting] ${action} failed`, err)
+}
+
 export interface UsePlaybackReportingParams {
   itemId: string
   mediaSourceId?: string
@@ -88,7 +92,7 @@ export function usePlaybackReporting(params: UsePlaybackReportingParams): void {
       const cur = latestRef.current
       return {
         itemId: cur.itemId,
-        sessionId: cur.playSessionId,
+        playSessionId: cur.playSessionId,
         mediaSourceId: cur.mediaSourceId,
         audioStreamIndex: cur.audioStreamIndex,
         subtitleStreamIndex: cur.subtitleStreamIndex,
@@ -101,14 +105,33 @@ export function usePlaybackReporting(params: UsePlaybackReportingParams): void {
       }
     }
 
+    /**
+     * 必需字段齐了才发，否则 Emby 会 400：
+     *   "Value cannot be null. (Parameter 'key')"
+     * 典型触发路径：
+     *   - video 刚挂载、currentUrl/playSessionId 尚未注入时，会抛一次 currentTime=0
+     *     的 timeupdate，这时 cur.mediaSourceId / cur.playSessionId 还是 undefined，
+     *     对应 Progress 里字段是 null，Emby 按 Dict key 查表直接抛。
+     *   - 切源瞬间 mediaSourceId 先换成下一个、itemId 还没对应上也会出现窗口。
+     * 解决：itemId + mediaSourceId + playSessionId 任一缺就不发，等下一次。
+     */
+    const canReport = (): boolean => {
+      const cur = latestRef.current
+      return !!cur.itemId && !!cur.mediaSourceId && !!cur.playSessionId
+    }
+
     const sendProgress = () => {
+      if (!hasStartedRef.current || !canReport()) return
       lastPositionTicksRef.current = secondsToTicks(video.currentTime)
-      void reportPlaybackProgress(commonProgress()).catch(() => {})
+      void reportPlaybackProgress(commonProgress()).catch((err: unknown) => {
+        logReportingFailure('progress', err)
+      })
     }
 
     const throttledProgress = throttle(sendProgress, 10_000)
 
     const onPlaying = () => {
+      if (!canReport()) return
       const cur = latestRef.current
       lastPositionTicksRef.current = secondsToTicks(video.currentTime)
       if (!hasStartedRef.current) {
@@ -116,8 +139,10 @@ export function usePlaybackReporting(params: UsePlaybackReportingParams): void {
         void reportPlaybackStart({
           ...commonProgress(),
           playbackStartTimeTicks: secondsToTicks(video.currentTime),
-          sessionId: cur.playSessionId,
-        }).catch(() => {})
+          playSessionId: cur.playSessionId,
+        }).catch((err: unknown) => {
+          logReportingFailure('start', err)
+        })
       } else {
         // 从 seek / pause 恢复也算一次 progress（不节流）
         sendProgress()
@@ -125,28 +150,33 @@ export function usePlaybackReporting(params: UsePlaybackReportingParams): void {
     }
 
     const onTimeUpdate = () => {
+      if (!canReport()) return
       lastPositionTicksRef.current = secondsToTicks(video.currentTime)
       throttledProgress()
     }
 
     const onEnded = async () => {
+      if (!hasStartedRef.current || !canReport()) return
       // 先把最后一次进度发出去
       try {
         await reportPlaybackProgress(commonProgress())
-      } catch {
-        /* ignore */
+      } catch (err) {
+        logReportingFailure('final progress', err)
       }
       try {
         await reportPlaybackStop(commonProgress())
-      } catch {
-        /* ignore */
+      } catch (err) {
+        logReportingFailure('stop', err)
       }
       if (latestRef.current.userId && latestRef.current.itemId) {
-        void markPlayed(latestRef.current.userId, latestRef.current.itemId).catch(() => {})
+        void markPlayed(latestRef.current.userId, latestRef.current.itemId).catch((err: unknown) => {
+          logReportingFailure('mark played', err)
+        })
       }
     }
 
-    const onPageHide = async () => {
+    const onPageHide = () => {
+      if (!hasStartedRef.current || !canReport()) return
       // 页面关闭 / 切后台：最后一次尽力上报 stop
       const cur = latestRef.current
       const positionTicks = video.currentTime
@@ -154,15 +184,19 @@ export function usePlaybackReporting(params: UsePlaybackReportingParams): void {
         : lastPositionTicksRef.current
       void reportPlaybackStop({
         itemId: cur.itemId,
-        sessionId: cur.playSessionId,
+        playSessionId: cur.playSessionId,
         mediaSourceId: cur.mediaSourceId,
         audioStreamIndex: cur.audioStreamIndex,
         subtitleStreamIndex: cur.subtitleStreamIndex,
         playMethod: cur.playMethod,
         positionTicks,
         isPaused: true,
-      }).catch(() => {})
+      }).catch((err: unknown) => {
+        logReportingFailure('pagehide stop', err)
+      })
     }
+
+    const onEndedListener: EventListener = () => { void onEnded() }
 
     video.addEventListener('playing', onPlaying)
     video.addEventListener('timeupdate', onTimeUpdate)
@@ -172,7 +206,7 @@ export function usePlaybackReporting(params: UsePlaybackReportingParams): void {
     video.addEventListener('volumechange', sendProgress)
     video.addEventListener('enterpictureinpicture', sendProgress)
     video.addEventListener('leavepictureinpicture', sendProgress)
-    video.addEventListener('ended', onEnded)
+    video.addEventListener('ended', onEndedListener)
     window.addEventListener('pagehide', onPageHide)
 
     return () => {
@@ -184,24 +218,26 @@ export function usePlaybackReporting(params: UsePlaybackReportingParams): void {
       video.removeEventListener('volumechange', sendProgress)
       video.removeEventListener('enterpictureinpicture', sendProgress)
       video.removeEventListener('leavepictureinpicture', sendProgress)
-      video.removeEventListener('ended', onEnded)
+      video.removeEventListener('ended', onEndedListener)
       window.removeEventListener('pagehide', onPageHide)
 
       // 组件卸载时，若 video 还存在，发一次 stop（确保服务端知道）
+      if (!hasStartedRef.current || !canReport()) return
       const cur = latestRef.current
       void reportPlaybackStop({
         itemId: cur.itemId,
-        sessionId: cur.playSessionId,
+        playSessionId: cur.playSessionId,
         mediaSourceId: cur.mediaSourceId,
         audioStreamIndex: cur.audioStreamIndex,
         subtitleStreamIndex: cur.subtitleStreamIndex,
         playMethod: cur.playMethod,
         positionTicks: lastPositionTicksRef.current,
         isPaused: true,
-      }).catch(() => {})
+      }).catch((err: unknown) => {
+        logReportingFailure('cleanup stop', err)
+      })
     }
     // 依赖只包含 video；其他参数用 ref 读取
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [video])
 }
 

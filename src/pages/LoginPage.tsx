@@ -30,12 +30,20 @@ export function LoginPage() {
       let cancelled = false
       setTesting(true)
       const base = normalizeServerUrl(server)
+      console.warn(`[LoginPage] 探测服务器 raw="${server}" normalized="${base}"`)
       getPublicSystemInfo(base)
         .then((r: PublicSystemInfo | undefined) => {
           if (cancelled || !r) return
+          console.warn(`[LoginPage] 探测成功 serverName=${r.serverName} version=${r.version}`)
           setServerInfo({ name: r.serverName || 'Emby Server', version: r.version || '' })
         })
-        .catch(() => !cancelled && setServerInfo(null))
+        .catch((e: unknown) => {
+          console.error(
+            `[LoginPage] 探测失败 base=${base}`,
+            e instanceof Error ? { name: e.name, message: e.message, cause: (e as Error & { cause?: unknown }).cause } : e,
+          )
+          if (!cancelled) setServerInfo(null)
+        })
         .finally(() => !cancelled && setTesting(false))
       return () => { cancelled = true }
     } else {
@@ -75,9 +83,14 @@ export function LoginPage() {
       } catch {
         /* ignore */
       }
-      navigate(redirectTo, { replace: true })
-    } catch (e: any) {
-      setErr(e?.message || String(e))
+      void navigate(redirectTo, { replace: true })
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      console.error(
+        `[LoginPage] 登录失败 server=${normalized} user=${username}`,
+        e instanceof Error ? { name: e.name, message: e.message, cause: (e as Error & { cause?: unknown }).cause } : e,
+      )
+      setErr(msg || String(e))
     } finally {
       setSubmitting(false)
     }
@@ -86,7 +99,7 @@ export function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-jelly-bg">
       <form
-        onSubmit={handleSubmit}
+        onSubmit={(e) => { void handleSubmit(e) }}
         className="w-full max-w-md bg-jelly-panel border border-white/10 rounded-2xl p-6 md:p-8 shadow-2xl space-y-5"
       >
         <div>

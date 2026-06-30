@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react'
 import type { PlayMethod } from '@/api/types'
+import type { PlayerControl } from '@/components/player/backends/control'
 
 export interface KeyboardShortcutApi {
   video: HTMLVideoElement | null
+  control?: PlayerControl
   container: HTMLElement | null
   hasPrev?: boolean
   hasNext?: boolean
@@ -42,9 +44,15 @@ export function useKeyboardShortcuts(api: KeyboardShortcutApi, enabled = true) {
       }
 
       const cur = apiRef.current
-      const { video, container, hasPrev, hasNext, onPrev, onNext, playbackRate, setPlaybackRate, cycleSubtitles } = cur
+      const { video, control, container, hasPrev, hasNext, onPrev, onNext, playbackRate, setPlaybackRate, cycleSubtitles } = cur
 
       const seekRel = (delta: number) => {
+        if (control) {
+          const dur = control.duration || 0
+          const next = Math.max(0, Math.min(dur > 0 ? dur - 0.1 : Infinity, control.currentTime + delta))
+          control.seek(next)
+          return
+        }
         if (!video) return
         const dur = video.duration || 0
         const next = Math.max(0, Math.min(dur > 0 ? dur - 0.1 : Infinity, video.currentTime + delta))
@@ -52,8 +60,15 @@ export function useKeyboardShortcuts(api: KeyboardShortcutApi, enabled = true) {
       }
 
       const togglePlay = () => {
+        if (control) {
+          if (control.paused) void control.play()
+          else control.pause()
+          return
+        }
         if (!video) return
-        if (video.paused) void video.play().catch(() => {})
+        if (video.paused) void video.play().catch((err: unknown) => {
+          console.warn('[Player] shortcut play failed', err)
+        })
         else video.pause()
       }
 
@@ -74,7 +89,11 @@ export function useKeyboardShortcuts(api: KeyboardShortcutApi, enabled = true) {
           break
         case 'ArrowUp':
           e.preventDefault()
-          if (video) {
+          if (control) {
+            const v = Math.min(1, control.volume + 0.1)
+            control.setVolume(v)
+            if (v > 0) control.setMuted(false)
+          } else if (video) {
             const v = Math.min(1, video.volume + 0.1)
             video.volume = v
             if (v > 0) video.muted = false
@@ -82,12 +101,14 @@ export function useKeyboardShortcuts(api: KeyboardShortcutApi, enabled = true) {
           break
         case 'ArrowDown':
           e.preventDefault()
-          if (video) video.volume = Math.max(0, video.volume - 0.1)
+          if (control) control.setVolume(Math.max(0, control.volume - 0.1))
+          else if (video) video.volume = Math.max(0, video.volume - 0.1)
           break
         case 'm':
         case 'M':
           e.preventDefault()
-          if (video) video.muted = !video.muted
+          if (control) control.setMuted(!control.muted)
+          else if (video) video.muted = !video.muted
           break
         case 'f':
         case 'F':
@@ -126,12 +147,12 @@ export function useKeyboardShortcuts(api: KeyboardShortcutApi, enabled = true) {
         case '<':
         case ',':
           e.preventDefault()
-          setPlaybackRate(Math.max(0.25, +(playbackRate - 0.25).toFixed(2)))
+          setPlaybackRate(Math.max(0.25, Number((playbackRate - 0.25).toFixed(2))))
           break
         case '>':
         case '.':
           e.preventDefault()
-          setPlaybackRate(Math.min(3, +(playbackRate + 0.25).toFixed(2)))
+          setPlaybackRate(Math.min(3, Number((playbackRate + 0.25).toFixed(2))))
           break
         default:
           break

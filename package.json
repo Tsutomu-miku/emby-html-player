@@ -1,31 +1,94 @@
 {
   "name": "emby-html-player",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "homepage": "https://Tsutomu-miku.github.io/emby-html-player/",
+  "main": "out/main/index.mjs",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "pnpm build:native:view && electron-vite dev --watch",
+    "dev:web": "vite",
+    "build": "electron-vite build",
+    "build:web": "tsc && vite build",
     "preview": "vite preview",
-    "deploy": "pnpm build && gh-pages -d dist -b gh-pages --dotfiles --nojekyll"
+    "deploy": "pnpm build:web && gh-pages -d dist -b gh-pages --dotfiles --nojekyll",
+    "bundle:native:mac": "node scripts/bundle-macos-mpv.mjs",
+    "build:native:player": "node scripts/build-mpv-player-addon.mjs",
+    "build:native:view": "pnpm build:native:player",
+    "stage:native": "node scripts/stage-native-mpv.mjs",
+    "verify:native": "node scripts/verify-native-resources.mjs",
+    "package": "pnpm build:native:view && pnpm verify:native && pnpm build && electron-builder",
+    "package:mac": "pnpm build:native:view && pnpm verify:native && pnpm build && electron-builder --mac",
+    "package:linux": "pnpm verify:native && pnpm build && electron-builder --linux",
+    "package:win": "pnpm verify:native && pnpm build && electron-builder --win",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^26.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.5.1",
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "eslint": "^10.5.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "gh-pages": "^6.3.0",
+    "globals": "^17.7.0",
     "postcss": "^8.5.15",
     "tailwindcss": "^3.4.19",
     "typescript": "~6.0.2",
+    "typescript-eslint": "^8.62.0",
     "vite": "^8.1.0"
   },
   "dependencies": {
+    "clsx": "^2.1.1",
     "hls.js": "^1.6.16",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.0",
     "zustand": "^5.0.14"
+  },
+  "build": {
+    "appId": "com.tsutomu-miku.emby-html-player",
+    "productName": "Emby H5 Player",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/native",
+        "to": "native",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.entertainment",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "linux": {
+      "category": "AudioVideo",
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    }
   }
 }

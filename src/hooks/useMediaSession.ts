@@ -26,13 +26,13 @@ export function useMediaSession(params: UseMediaSessionParams) {
     // 设置 meta
     if (item) {
       const artwork: MediaImage[] = []
-      const p = posterUrl(item as BaseItemDto, { maxWidth: 512, maxHeight: 512 })
+      const p = posterUrl(item, { maxWidth: 512, maxHeight: 512 })
       if (p) artwork.push({ src: p, sizes: '512x512', type: 'image/jpeg' })
       try {
         ms.metadata = new MediaMetadata({
           title: item.name ?? '',
-          artist: (item as BaseItemDto).seriesName ?? '',
-          album: (item as BaseItemDto).seasonName ?? '',
+          artist: item.seriesName ?? '',
+          album: item.seasonName ?? '',
           artwork,
         })
       } catch {
@@ -81,7 +81,7 @@ export function useMediaSession(params: UseMediaSessionParams) {
       [
         'seekto',
         (details) => {
-          if (!video || details.seekTime == null) return
+          if (!video || details.seekTime === null || details.seekTime === undefined) return
           video.currentTime = Math.min(video.duration || Infinity, Math.max(0, details.seekTime))
         },
       ],

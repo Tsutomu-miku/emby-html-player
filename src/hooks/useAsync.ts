@@ -39,7 +39,7 @@ export function useAsync<T>(
       cancelled = true
       ctrl.abort()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 外部透传 deps，hook 调用方自行保证稳定性
   }, deps)
 
   return state

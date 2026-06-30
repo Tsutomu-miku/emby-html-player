@@ -94,7 +94,7 @@ export function TopBar() {
 
   function handleLogout() {
     logout()
-    navigate('/login', { replace: true })
+    void navigate('/login', { replace: true })
   }
 
   return (
@@ -125,7 +125,8 @@ export function TopBar() {
                     href={c.to}
                     onClick={(e) => {
                       e.preventDefault()
-                      navigate(c.to!)
+                      const target = c.to
+                      if (target) void navigate(target)
                     }}
                     className="truncate text-jelly-muted hover:text-jelly-text transition-colors"
                   >
@@ -149,7 +150,7 @@ export function TopBar() {
           {/* 返回按钮 */}
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => { void navigate(-1) }}
             aria-label="返回"
             className="p-2 rounded-md text-jelly-muted hover:text-jelly-text hover:bg-white/5 transition"
             title="返回上一页"

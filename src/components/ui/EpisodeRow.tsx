@@ -40,7 +40,7 @@ export function EpisodeRow({ episode, showSeasonLabel = false }: EpisodeRowProps
         'group grid grid-cols-[110px_1fr] sm:grid-cols-[160px_1fr] gap-3 sm:gap-4 p-2 sm:p-3 rounded-lg',
         'bg-jelly-card hover:bg-jelly-hover transition-colors cursor-pointer',
       )}
-      onClick={() => navigate(`/player/${episode.id}`)}
+      onClick={() => { void navigate(`/player/${episode.id}`) }}
     >
       {/* 缩略图 */}
       <div className="relative aspect-video rounded overflow-hidden bg-jelly-panel shrink-0">
@@ -61,7 +61,7 @@ export function EpisodeRow({ episode, showSeasonLabel = false }: EpisodeRowProps
         <button
           onClick={(e) => {
             e.stopPropagation()
-            navigate(`/player/${episode.id}`)
+            void navigate(`/player/${episode.id}`)
           }}
           className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
           aria-label="播放"

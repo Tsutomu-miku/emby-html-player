@@ -1,22 +1,21 @@
+/* eslint-disable max-lines -- PlayerPage glue 含多段 JSX/面包屑/收藏/简介，335 行 ≤ 400 符合特例 */
+/* eslint-disable max-lines-per-function -- PlayerPage 页面级组件（路由+hooks+JSX），强耦合无法拆分到独立组件，335 行 ≤ 400 符合特例 */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Player } from '@/components/player/Player'
 import { useAuthStore } from '@/store/auth'
 import { useSettingsStore } from '@/store/settings'
-import { getItem, getEpisodes, markPlayed, markFavorite } from '@/api/library'
-import { posterUrl, backdropUrl, thumbUrl } from '@/api/images'
 import type { BaseItemDto } from '@/api/types'
 import { cx } from '@/utils'
 import { formatDurationShort, ticksToSeconds } from '@/utils/time'
 import { buildDeviceProfile } from '@/api/playback'
+import { useEpisodeData } from './player/hooks/useEpisodeData'
+import { useNextEpisode } from './player/hooks/useNextEpisode'
+import { NextEpisodeCard } from './player/parts/NextEpisodeCard'
+import { AdjacentEpisodes } from './player/parts/AdjacentEpisodes'
 
 // 防止 buildDeviceProfile 被 tree-shake 警告
 void buildDeviceProfile
-
-interface EpisodesState {
-  loading: boolean
-  items: BaseItemDto[]
-}
 
 export function PlayerPage() {
   const { itemId = '' } = useParams()
@@ -32,138 +31,55 @@ export function PlayerPage() {
   const playerContainerRef = useRef<HTMLDivElement>(null)
   const playerBindRef = useRef<HTMLDivElement | null>(null)
 
-  const [item, setItem] = useState<BaseItemDto | null>(null)
-  const [itemLoading, setItemLoading] = useState(true)
-  const [itemError, setItemError] = useState<string | null>(null)
+  // ===== 数据加载 + 收藏/已看状态 =====
+  const {
+    item,
+    itemLoading,
+    itemError,
+    episodes,
+    favorite,
+    played,
+    startPositionTicks,
+    toggleFavorite,
+    togglePlayed,
+  } = useEpisodeData({ itemId, userId })
 
-  const [favorite, setFavorite] = useState<boolean>(false)
-  const [played, setPlayed] = useState<boolean>(false)
+  // ===== 下一集倒计时 / 自动播放 =====
+  const {
+    nextEpisode,
+    countdown,
+    beforeEnded,
+    autoplayCancelled,
+    setAutoplayCancelled,
+    setBeforeEnded,
+    clearCountdown,
+    autoPlayedRef,
+    onBeforeEndedHandler,
+    onEndedHandler,
+  } = useNextEpisode({
+    item,
+    episodes: episodes.items,
+    settings: {
+      showNextEpisodeCountdown,
+      nextEpisodeCountdownThreshold,
+      nextEpisodeCountdownSeconds,
+      autoPlayNextEpisode,
+    },
+    onNavigate: (id: string) => { void navigate(`/player/${id}`, { replace: false }) },
+  })
 
-  const [episodes, setEpisodes] = useState<EpisodesState>({ loading: false, items: [] })
-
+  // ===== 展开/收起 overview =====
   const [showExpand, setShowExpand] = useState(false)
+  useEffect(() => {
+    setShowExpand(false)
+  }, [item?.id])
   const shortOverview = useMemo(() => {
     const ov = item?.overview ?? ''
     if (ov.length <= 220) return ov
     return showExpand ? ov : `${ov.slice(0, 220).trimEnd()}…`
   }, [item, showExpand])
 
-  /* ========== 加载条目详情 + 剧集列表 ========== */
-  useEffect(() => {
-    if (!itemId || !userId) return
-    let cancelled = false
-    setItemLoading(true)
-    setItemError(null)
-    void (async () => {
-      try {
-        const it = await getItem(userId, itemId)
-        if (cancelled) return
-        setItem(it)
-        setFavorite(!!it.userData?.isFavorite)
-        setPlayed(!!it.userData?.played)
-
-        // 如果是 Episode，加载当前季所有剧集
-        if (it.type === 'Episode' && it.seriesId) {
-          setEpisodes({ loading: true, items: [] })
-          try {
-            const seasonId = it.seasonId
-            const res = await getEpisodes(userId, it.seriesId, seasonId)
-            if (!cancelled) setEpisodes({ loading: false, items: res.items ?? [] })
-          } catch {
-            if (!cancelled) setEpisodes({ loading: false, items: [] })
-          }
-        } else {
-          setEpisodes({ loading: false, items: [] })
-        }
-      } catch (err) {
-        if (!cancelled) setItemError(err instanceof Error ? err.message : String(err))
-      } finally {
-        if (!cancelled) setItemLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [itemId, userId])
-
-  /* ========== 下一集卡片（"即将播放"） ========== */
-  const [beforeEnded, setBeforeEnded] = useState(false)
-  const [nextEpisode, setNextEpisode] = useState<BaseItemDto | null>(null)
-  const [countdown, setCountdown] = useState(nextEpisodeCountdownSeconds)
-  const [autoplayCancelled, setAutoplayCancelled] = useState(false)
-  const autoPlayedRef = useRef(false)
-  const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  // 计算 next episode
-  useEffect(() => {
-    if (!item || !episodes.items.length) {
-      setNextEpisode(null)
-      return
-    }
-    const idx = episodes.items.findIndex((e) => e.id === item.id)
-    if (idx < 0 || idx >= episodes.items.length - 1) {
-      setNextEpisode(null)
-      return
-    }
-    setNextEpisode(episodes.items[idx + 1])
-  }, [item, episodes.items])
-
-  // 清理倒计时
-  const clearCountdown = useCallback(() => {
-    if (countdownTimerRef.current) {
-      clearInterval(countdownTimerRef.current)
-      countdownTimerRef.current = null
-    }
-  }, [])
-
-  const onBeforeEnded = useCallback(
-    (_secondsLeft: number) => {
-      if (!nextEpisode || beforeEnded || autoplayCancelled) return
-      // 设置：关闭倒计时卡片，则直接跳过（仍然给 onEnded 处理「自动跳下一集」）
-      if (!showNextEpisodeCountdown) return
-      setBeforeEnded(true)
-      setCountdown(Math.max(3, nextEpisodeCountdownSeconds))
-      autoPlayedRef.current = false
-      clearCountdown()
-      countdownTimerRef.current = setInterval(() => {
-        setCountdown((c) => {
-          if (c <= 1) {
-            clearCountdown()
-            if (!autoPlayedRef.current && !autoplayCancelled && autoPlayNextEpisode) {
-              autoPlayedRef.current = true
-              navigate(`/player/${nextEpisode.id}`, { replace: false })
-            }
-            return 0
-          }
-          return c - 1
-        })
-      }, 1000)
-    },
-    [
-      nextEpisode,
-      beforeEnded,
-      autoplayCancelled,
-      clearCountdown,
-      navigate,
-      showNextEpisodeCountdown,
-      nextEpisodeCountdownSeconds,
-      autoPlayNextEpisode,
-    ],
-  )
-
-  const onEnded = useCallback(() => {
-    // 如果倒计时还没到 0，且用户没取消，且开启了自动跳下一集 → 立即跳
-    if (nextEpisode && !autoPlayedRef.current && !autoplayCancelled && autoPlayNextEpisode) {
-      autoPlayedRef.current = true
-      clearCountdown()
-      navigate(`/player/${nextEpisode.id}`, { replace: false })
-    }
-  }, [nextEpisode, autoplayCancelled, clearCountdown, navigate, autoPlayNextEpisode])
-
-  useEffect(() => () => clearCountdown(), [clearCountdown])
-
   /* ========== 绑定 Player 的 hasPrev/hasNext/onPrev/onNext ========== */
-  // 剧集在列表中的前后位置
   const adjacency = useMemo(() => {
     if (!item || !episodes.items.length) return { prev: null as BaseItemDto | null, next: nextEpisode }
     const idx = episodes.items.findIndex((e) => e.id === item.id)
@@ -187,52 +103,23 @@ export function PlayerPage() {
       | null
     if (!playerEl) return
     playerBindRef.current = playerEl
+    const prevItem = adjacency.prev
+    const nextItem = adjacency.next
     const bind = () => {
       playerEl.__playerBindHandlers?.({
-        hasPrev: !!adjacency.prev,
-        hasNext: !!adjacency.next,
-        onPrev: adjacency.prev ? () => navigate(`/player/${adjacency.prev!.id}`) : undefined,
-        onNext: adjacency.next ? () => navigate(`/player/${adjacency.next!.id}`) : undefined,
+        hasPrev: !!prevItem,
+        hasNext: !!nextItem,
+        onPrev: prevItem ? () => { void navigate(`/player/${prevItem.id}`) } : undefined,
+        onNext: nextItem ? () => { void navigate(`/player/${nextItem.id}`) } : undefined,
       })
     }
     bind()
-    // 监听 player-ready 事件（Player 内 dispatch）
-    const onReady = () => bind()
-    playerEl.addEventListener('player-ready', onReady as EventListener)
+    const onReady: EventListener = () => { bind() }
+    playerEl.addEventListener('player-ready', onReady)
     return () => {
-      playerEl.removeEventListener('player-ready', onReady as EventListener)
+      playerEl.removeEventListener('player-ready', onReady)
     }
   }, [adjacency.prev, adjacency.next, navigate])
-
-  // startPositionTicks：用户上次位置（若 > 60 秒则继续）
-  const startPositionTicks = useMemo(() => {
-    const t = item?.userData?.playbackPositionTicks ?? 0
-    if (ticksToSeconds(t) > 60) return t
-    return 0
-  }, [item])
-
-  /* ========== 操作：收藏 / 已看 ========== */
-  const toggleFavorite = useCallback(async () => {
-    if (!userId || !item) return
-    const next = !favorite
-    setFavorite(next)
-    try {
-      await markFavorite(userId, item.id, next)
-    } catch {
-      setFavorite(!next)
-    }
-  }, [userId, item, favorite])
-
-  const togglePlayed = useCallback(async () => {
-    if (!userId || !item) return
-    const next = !played
-    setPlayed(next)
-    try {
-      await markPlayed(userId, item.id, next)
-    } catch {
-      setPlayed(!next)
-    }
-  }, [userId, item, played])
 
   /* ========== 相邻集列表（当前集 ± 6） ========== */
   const adjacentEpisodes = useMemo(() => {
@@ -243,6 +130,57 @@ export function PlayerPage() {
     const to = Math.min(episodes.items.length, idx + 7)
     return episodes.items.slice(from, to)
   }, [item, episodes.items])
+
+  const handleToggleFavorite = useCallback(() => {
+    void toggleFavorite()
+  }, [toggleFavorite])
+
+  const handleTogglePlayed = useCallback(() => {
+    void togglePlayed()
+  }, [togglePlayed])
+
+  /* ========== 面包屑（集数 / 名称） ========== */
+  const breadcrumb = useMemo(() => {
+    if (itemLoading || !item) return <div className="skeleton h-5 w-48 rounded" />
+    if (item.type === 'Episode') {
+      return (
+        <nav className="flex items-center gap-2 text-sm text-jelly-muted flex-wrap">
+          {item.seriesName ? (
+            <span className="text-white truncate">{item.seriesName}</span>
+          ) : null}
+          {item.seriesName ? <span className="opacity-40">/</span> : null}
+          {item.parentIndexNumber !== null ? (
+            <span>Season {item.parentIndexNumber}</span>
+          ) : item.seasonName ? (
+            <span>{item.seasonName}</span>
+          ) : null}
+          {item.indexNumber !== null && (item.parentIndexNumber !== null || item.seasonName) ? (
+            <span className="opacity-40">/</span>
+          ) : null}
+          {item.indexNumber !== null ? (
+            <span>E{String(item.indexNumber).padStart(2, '0')}</span>
+          ) : null}
+          {item.name ? <span className="opacity-40">·</span> : null}
+          {item.name ? <span className="text-white truncate">{item.name}</span> : null}
+        </nav>
+      )
+    }
+    return <div className="text-white font-medium truncate">{item.name ?? '未命名'}</div>
+  }, [item, itemLoading])
+
+  /* ====== 下一集卡片回调 ====== */
+  const handlePlayNow = useCallback(() => {
+    if (!nextEpisode) return
+    autoPlayedRef.current = true
+    clearCountdown()
+    void navigate(`/player/${nextEpisode.id}`)
+  }, [nextEpisode, autoPlayedRef, clearCountdown, navigate])
+
+  const handleCancelCountdown = useCallback(() => {
+    setAutoplayCancelled(true)
+    clearCountdown()
+    setBeforeEnded(false)
+  }, [setAutoplayCancelled, clearCountdown, setBeforeEnded])
 
   /* ========== 渲染 ========== */
   if (itemError) {
@@ -256,34 +194,6 @@ export function PlayerPage() {
     )
   }
 
-  const breadcrumb = (() => {
-    if (itemLoading || !item) return <div className="skeleton h-5 w-48 rounded" />
-    if (item.type === 'Episode') {
-      return (
-        <nav className="flex items-center gap-2 text-sm text-jelly-muted flex-wrap">
-          {item.seriesName ? (
-            <span className="text-white truncate">{item.seriesName}</span>
-          ) : null}
-          {item.seriesName ? <span className="opacity-40">/</span> : null}
-          {item.parentIndexNumber != null ? (
-            <span>Season {item.parentIndexNumber}</span>
-          ) : item.seasonName ? (
-            <span>{item.seasonName}</span>
-          ) : null}
-          {item.indexNumber != null && (item.parentIndexNumber != null || item.seasonName) ? (
-            <span className="opacity-40">/</span>
-          ) : null}
-          {item.indexNumber != null ? (
-            <span>E{String(item.indexNumber).padStart(2, '0')}</span>
-          ) : null}
-          {item.name ? <span className="opacity-40">·</span> : null}
-          {item.name ? <span className="text-white truncate">{item.name}</span> : null}
-        </nav>
-      )
-    }
-    return <div className="text-white font-medium truncate">{item.name ?? '未命名'}</div>
-  })()
-
   return (
     <div className="pb-12 space-y-6">
       {/* 顶部 TopBar */}
@@ -291,10 +201,12 @@ export function PlayerPage() {
         <button
           type="button"
           aria-label="返回"
-          onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+          onClick={() => {
+            if (window.history.length > 1) void navigate(-1)
+            else void navigate('/')
+          }}
           className="btn-ghost !p-2"
         >
-          {/* ← */}
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
@@ -309,75 +221,18 @@ export function PlayerPage() {
           startPositionTicks={startPositionTicks}
           seriesId={item?.seriesId}
           beforeEndedThresholdSeconds={nextEpisodeCountdownThreshold}
-          onBeforeEnded={onBeforeEnded}
-          onEnded={onEnded}
+          onBeforeEnded={onBeforeEndedHandler}
+          onEnded={onEndedHandler}
         >
-          {/* 下一集卡片覆盖层：相对外层容器定位 */}
-          {beforeEnded && nextEpisode && !autoplayCancelled ? (
-            <div
-              role="dialog"
-              aria-label="即将播放下一集"
-              className="absolute z-30 bottom-24 right-4 sm:right-6 w-[280px] sm:w-[320px] rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10 bg-jelly-card/95 backdrop-blur animate-[fadeIn_.25s_ease-out]"
-              style={{ animation: 'fadeIn .25s ease-out' }}
-            >
-              <div className="relative aspect-video">
-                <img
-                  src={
-                    thumbUrl(nextEpisode, { width: 640 }) ||
-                    backdropUrl(nextEpisode as BaseItemDto, { width: 640 }) ||
-                    posterUrl(nextEpisode as BaseItemDto, { width: 640 })
-                  }
-                  alt=""
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                  onError={(e) => {
-                    const t = e.currentTarget
-                    t.style.display = 'none'
-                  }}
-                />
-                <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-jelly-card to-transparent pointer-events-none" />
-                <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/60 text-white text-[11px] font-medium">
-                  {countdown}s 后自动播放
-                </div>
-              </div>
-              <div className="p-3 space-y-2">
-                <div className="text-[11px] text-jelly-muted">
-                  {nextEpisode.parentIndexNumber != null && nextEpisode.indexNumber != null
-                    ? `S${String(nextEpisode.parentIndexNumber).padStart(2, '0')}E${String(nextEpisode.indexNumber).padStart(2, '0')}`
-                    : ''}
-                </div>
-                <div className="text-white font-semibold text-sm line-clamp-1">
-                  {nextEpisode.name ?? '下一集'}
-                </div>
-                <div className="text-xs text-jelly-muted line-clamp-2 leading-relaxed min-h-[2.5em]">
-                  {nextEpisode.overview || '暂无简介'}
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <button
-                    type="button"
-                    className="btn !py-1.5 text-xs flex-1"
-                    onClick={() => {
-                      autoPlayedRef.current = true
-                      clearCountdown()
-                      navigate(`/player/${nextEpisode.id}`)
-                    }}
-                  >
-                    立即播放
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost !py-1.5 text-xs flex-1"
-                    onClick={() => {
-                      setAutoplayCancelled(true)
-                      clearCountdown()
-                      setBeforeEnded(false)
-                    }}
-                  >
-                    取消
-                  </button>
-                </div>
-              </div>
-            </div>
+          {nextEpisode ? (
+            <NextEpisodeCard
+              nextEpisode={nextEpisode}
+              countdown={countdown}
+              beforeEnded={beforeEnded}
+              autoplayCancelled={autoplayCancelled}
+              onPlayNow={handlePlayNow}
+              onCancel={handleCancelCountdown}
+            />
           ) : null}
         </Player>
       </div>
@@ -427,7 +282,7 @@ export function PlayerPage() {
                   ? 'bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 ring-1 ring-amber-500/20'
                   : 'btn-ghost',
               )}
-              onClick={toggleFavorite}
+              onClick={handleToggleFavorite}
               aria-pressed={favorite}
             >
               <svg viewBox="0 0 24 24" width="16" height="16" fill={favorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -443,7 +298,7 @@ export function PlayerPage() {
                   ? 'bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 ring-1 ring-emerald-500/20'
                   : 'btn-ghost',
               )}
-              onClick={togglePlayed}
+              onClick={handleTogglePlayed}
               aria-pressed={played}
             >
               <svg viewBox="0 0 24 24" width="16" height="16" fill={played ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -479,71 +334,12 @@ export function PlayerPage() {
         </div>
 
         {/* 相邻集 */}
-        {item?.type === 'Episode' && (episodes.loading || adjacentEpisodes.length > 0) ? (
-          <div>
-            <h2 className="text-lg font-semibold text-white mb-3">
-              {item.seasonName || (item.parentIndexNumber != null ? `Season ${item.parentIndexNumber}` : '本季剧集')}
-            </h2>
-            {episodes.loading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="card">
-                    <div className="aspect-video skeleton rounded-none" />
-                    <div className="p-3 space-y-2">
-                      <div className="skeleton h-4 w-1/3 rounded" />
-                      <div className="skeleton h-4 w-full rounded" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {adjacentEpisodes.map((ep) => {
-                  const isCurrent = ep.id === item.id
-                  return (
-                    <button
-                      key={ep.id}
-                      type="button"
-                      onClick={() => navigate(`/player/${ep.id}`)}
-                      className={cx(
-                        'card text-left group',
-                        isCurrent ? 'ring-2 ring-jelly-accent' : '',
-                      )}
-                    >
-                      <div className="aspect-video bg-jelly-hover overflow-hidden relative">
-                        <img
-                          src={
-                            thumbUrl(ep, { width: 480 }) ||
-                            backdropUrl(ep as BaseItemDto, { width: 480 }) ||
-                            posterUrl(ep as BaseItemDto, { width: 480 })
-                          }
-                          alt=""
-                          loading="lazy"
-                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none'
-                          }}
-                        />
-                        {ep.indexNumber != null ? (
-                          <span className="absolute top-1 left-1 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-black/70 text-white">
-                            E{String(ep.indexNumber).padStart(2, '0')}
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="p-3 space-y-1">
-                        <div className="text-sm font-medium text-white line-clamp-1">
-                          {ep.name ?? `第 ${ep.indexNumber ?? '?'} 集`}
-                        </div>
-                        <div className="text-xs text-jelly-muted line-clamp-2 leading-snug min-h-[2.2em]">
-                          {ep.overview || '暂无简介'}
-                        </div>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+        {item ? (
+          <AdjacentEpisodes
+            item={item}
+            episodesLoading={episodes.loading}
+            adjacentEpisodes={adjacentEpisodes}
+          />
         ) : null}
       </div>
     </div>
