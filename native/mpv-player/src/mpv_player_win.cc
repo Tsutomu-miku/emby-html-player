@@ -66,6 +66,10 @@ static uint64_t ParsePointer(const char* value, int base) {
   return strtoull(value, NULL, base);
 }
 
+static int MaxInt(int left, int right) {
+  return left > right ? left : right;
+}
+
 static PlayerState* ReadPlayer(napi_env env, napi_value value) {
   char* handle = ReadString(env, value);
   PlayerState* player = (PlayerState*)(uintptr_t)ParsePointer(handle, 10);
@@ -157,8 +161,8 @@ static void Render(PlayerState* player) {
   if (!player || !player->render || !player->hdc || !player->glrc) return;
   RECT rect;
   if (!GetClientRect(player->hwnd, &rect)) return;
-  int width = max(1, rect.right - rect.left);
-  int height = max(1, rect.bottom - rect.top);
+  int width = MaxInt(1, rect.right - rect.left);
+  int height = MaxInt(1, rect.bottom - rect.top);
   wglMakeCurrent(player->hdc, player->glrc);
   glViewport(0, 0, width, height);
   mpv_opengl_fbo fbo = {0, width, height, 0};
@@ -286,8 +290,8 @@ static napi_value Create(napi_env env, napi_callback_info info) {
 
   const int x = (int)ReadDouble(env, args[1]);
   const int y = (int)ReadDouble(env, args[2]);
-  const int width = max(1, (int)ReadDouble(env, args[3]));
-  const int height = max(1, (int)ReadDouble(env, args[4]));
+  const int width = MaxInt(1, (int)ReadDouble(env, args[3]));
+  const int height = MaxInt(1, (int)ReadDouble(env, args[4]));
 
   PlayerState* player = (PlayerState*)calloc(1, sizeof(PlayerState));
   player->hwnd = CreateWindowExW(
@@ -463,8 +467,8 @@ static napi_value SetBounds(napi_env env, napi_callback_info info) {
     player->hwnd,
     (int)ReadDouble(env, args[1]),
     (int)ReadDouble(env, args[2]),
-    max(1, (int)ReadDouble(env, args[3])),
-    max(1, (int)ReadDouble(env, args[4])),
+    MaxInt(1, (int)ReadDouble(env, args[3])),
+    MaxInt(1, (int)ReadDouble(env, args[4])),
     TRUE);
   napi_value result;
   napi_get_undefined(env, &result);
