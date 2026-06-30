@@ -8,6 +8,7 @@ import { PosterCard } from '@/components/ui/PosterCard'
 import { LibraryFilterBar, DEFAULT_FILTER, type LibraryFilterState } from '@/components/ui/LibraryFilterBar'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { collectionTypeLabel } from '@/components/layout/Sidebar'
+import './LibraryPage.scss'
 
 const PAGE_SIZE = 60
 
@@ -126,35 +127,38 @@ export function LibraryPage() {
 
   function skeletonAspect() {
     // 避免 TS 对字面量类型作过度窄化
-    if ((posterShape as string) === 'backdrop') return 'skeleton aspect-video rounded-lg'
-    return 'skeleton aspect-[2/3] rounded-lg'
+    if ((posterShape as string) === 'backdrop') return 'library-page__skeleton-poster is-backdrop skeleton'
+    return 'library-page__skeleton-poster is-poster skeleton'
+  }
+
+  function handleLoadMore() {
+    if (loading) return
+    if (all.length >= total && total > 0) return
+    setStartIndex((n) => (n === 0 ? PAGE_SIZE : n + PAGE_SIZE))
   }
 
   return (
-    <div className="space-y-5">
-      {/* 顶部：标题 + 面包屑文字 */}
-      <header className="space-y-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <h1 className="text-2xl font-bold">
+    <div className="library-page">
+      <header className="library-page__header">
+        <div className="library-page__heading">
+          <h1 className="library-page__title">
             {viewsState.loading ? (
-              <span className="inline-block w-48 h-8 skeleton rounded" />
+              <span className="library-page__title-skeleton skeleton" />
             ) : (
               currentView?.name || '媒体库'
             )}
           </h1>
           {currentView?.collectionType && (
-            <span className="chip">{collectionTypeLabel(currentView.collectionType)}</span>
+            <span className="chip library-page__type">{collectionTypeLabel(currentView.collectionType)}</span>
           )}
         </div>
-        <p className="text-sm text-jelly-muted">
+        <p className="library-page__count">
           共 {total > 0 ? total : loading ? '...' : all.length} 条
         </p>
       </header>
 
-      {/* 筛选器 */}
       <LibraryFilterBar viewId={viewId} value={filter} onChange={setFilter} />
 
-      {/* 错误 */}
       {error && (
         <ErrorState
           title="加载失败"
@@ -166,52 +170,50 @@ export function LibraryPage() {
         />
       )}
 
-      {/* 加载中初始骨架 */}
       {loading && all.length === 0 && !error && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+        <div className="library-page__grid">
           {Array.from({ length: skeletonCount }).map((_, i) => (
             <div key={i}>
               <div className={skeletonAspect()} />
-              <div className="mt-2 h-3 skeleton w-3/4 rounded" />
-              <div className="mt-1 h-3 skeleton w-1/2 rounded" />
+              <div className="library-page__skeleton-line skeleton" />
+              <div className="library-page__skeleton-line library-page__skeleton-line--short skeleton" />
             </div>
           ))}
         </div>
       )}
 
-      {/* 网格 */}
       {all.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+        <div className="library-page__grid">
           {all.map((item) => (
             <PosterCard key={item.id} item={item} shape={posterShape} size="md" showPlayButton />
           ))}
         </div>
       )}
 
-      {/* 哨兵（触发加载更多） */}
       {all.length > 0 && all.length < total && (
-        <div ref={sentinelRef} className="py-4 flex justify-center">
+        <div ref={sentinelRef} className="library-page__load-more">
           {loading ? (
-            <div className="inline-flex items-center gap-2 text-jelly-muted text-sm">
-              <span className="w-4 h-4 border-2 border-jelly-muted border-t-transparent rounded-full animate-spin" />
+            <div className="library-page__loading">
+              <span />
               加载中…
             </div>
           ) : (
-            <div className="text-jelly-muted text-sm">滚动加载更多</div>
+            <button type="button" className="library-page__load-button" onClick={handleLoadMore}>
+              加载更多
+            </button>
           )}
         </div>
       )}
 
       {all.length > 0 && all.length >= total && total > 0 && (
-        <div className="py-4 text-center text-sm text-jelly-muted">— 已加载全部内容 —</div>
+        <div className="library-page__done">已加载全部内容</div>
       )}
 
-      {/* 空态 */}
       {!loading && loadedEmpty && total === 0 && !error && (
-        <div className="py-16 text-center">
-          <div className="text-4xl mb-3">📭</div>
-          <div className="text-lg text-jelly-text">该媒体库内还没有内容</div>
-          <div className="text-sm text-jelly-muted mt-1">尝试调整筛选条件或稍后再试</div>
+        <div className="library-page__empty">
+          <div className="library-page__empty-icon" />
+          <div className="library-page__empty-title">该媒体库内还没有内容</div>
+          <div className="library-page__empty-text">尝试调整筛选条件或稍后再试</div>
         </div>
       )}
     </div>

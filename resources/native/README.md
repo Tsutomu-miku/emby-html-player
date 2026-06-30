@@ -12,8 +12,9 @@ Expected layout:
 - `linux/x64/libmpv.so`
 - `linux/x64/*.so*`
 - `win32/x64/ehp_mpv_player.node`
-- `win32/x64/libmpv.dll`
+- `win32/x64/libmpv.dll` (or `mpv-2.dll` / `libmpv-2.dll`)
 - `win32/x64/*.dll`
+- `win32/x64/include/mpv/{client,render,render_gl}.h` (build-time headers)
 
 The app intentionally does not search the system `PATH` for player binaries and
 does not spawn mpv as a separate process. Playback is embedded through libmpv.

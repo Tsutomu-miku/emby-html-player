@@ -1,0 +1,112 @@
+name: Package Installers
+
+on:
+  workflow_dispatch:
+    inputs:
+      native_runtime_url:
+        description: Zip URL containing vendor/mpv/<platform>/<arch> reviewed runtimes
+        required: false
+        type: string
+      create_release:
+        description: Attach artifacts to a GitHub release
+        required: false
+        default: false
+        type: boolean
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    env:
+      NATIVE_RUNTIME_URL: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.native_runtime_url || secrets.NATIVE_RUNTIME_URL }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+            platform: darwin
+            package_script: package:mac
+          - name: Windows x64
+            os: windows-latest
+            platform: win32
+            package_script: package:win
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download reviewed native runtimes
+        if: ${{ env.NATIVE_RUNTIME_URL != '' }}
+        shell: bash
+        run: |
+          curl -L "$NATIVE_RUNTIME_URL" -o native-runtime.zip
+          python - <<'PY'
+          import zipfile
+          with zipfile.ZipFile("native-runtime.zip") as z:
+              z.extractall(".")
+          PY
+
+      - name: Install macOS libmpv build headers
+        if: ${{ matrix.platform == 'darwin' }}
+        run: |
+          brew update
+          brew install mpv
+
+      - name: Bundle macOS libmpv fallback
+        if: ${{ matrix.platform == 'darwin' }}
+        shell: bash
+        run: |
+          arch="$(node -p "process.arch")"
+          if [ ! -f "vendor/mpv/darwin/${arch}/libmpv.2.dylib" ]; then
+            pnpm bundle:native:mac -- --source="$(brew --prefix mpv)/lib/libmpv.2.dylib" --arch="${arch}"
+          fi
+
+      - name: Stage reviewed native runtime
+        shell: bash
+        run: |
+          arch="$(node -p "process.arch")"
+          if [ -d "vendor/mpv/${{ matrix.platform }}/${arch}" ]; then
+            pnpm stage:native -- --platform=${{ matrix.platform }} --arch="${arch}"
+          else
+            echo "No reviewed runtime found at vendor/mpv/${{ matrix.platform }}/${arch}; package step will verify required native files."
+          fi
+
+      - name: Build and verify
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm ${{ matrix.package_script }}
+
+      - name: Upload installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: emby-desktop-player-${{ matrix.platform }}-${{ runner.arch }}
+          path: |
+            release/**
+            !release/**/*.blockmap
+
+      - name: Publish GitHub release
+        if: ${{ startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            release/**

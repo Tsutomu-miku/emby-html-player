@@ -4,8 +4,10 @@ import { useAuthStore } from '@/store/auth'
 import { getUserViews, getItem, type UserView } from '@/api'
 import { getImageUrl } from '@/api/images'
 import { SearchSuggest } from '@/components/ui/SearchSuggest'
+import { IconButton, StatusDot } from '@/components/ui/primitives'
 import { cx } from '@/utils'
 import type { BaseItemDto } from '@/api/types'
+import './TopBar.scss'
 
 /**
  * 顶栏：移动端汉堡、面包屑、中间搜索框、右侧返回/用户菜单。
@@ -98,28 +100,25 @@ export function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-40 backdrop-blur-md bg-jelly-bg/85 border-b border-white/5">
-      <div className="px-4 md:px-8 py-3 flex items-center gap-3 max-w-[1600px] mx-auto">
-        {/* 左：汉堡（移动端）+ 面包屑 */}
-        <div className="flex items-center gap-2 min-w-0 shrink-0 md:shrink md:min-w-0">
-          {/* 汉堡按钮（仅视觉，移动端 Sidebar 已经横排，此处保留占位） */}
-          <button
+    <header className="topbar">
+      <div className="topbar__inner">
+        <div className="topbar__leading">
+          <IconButton
             type="button"
             aria-label="菜单"
-            className="md:hidden p-2 -ml-2 rounded-md text-jelly-muted hover:text-jelly-text hover:bg-white/5 transition"
+            className="topbar__mobile-button"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-5 h-5">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="3" y1="6" x2="21" y2="6" />
               <line x1="3" y1="12" x2="21" y2="12" />
               <line x1="3" y1="18" x2="21" y2="18" />
             </svg>
-          </button>
+          </IconButton>
 
-          {/* 面包屑 */}
-          <nav className="hidden md:flex items-center gap-1.5 text-sm min-w-0 max-w-xs">
+          <nav className="topbar__crumbs" aria-label="面包屑">
             {crumbs.map((c, i) => (
-              <span key={i} className="flex items-center gap-1.5 min-w-0">
-                {i > 0 && <span className="text-jelly-muted">/</span>}
+              <span key={i} className="topbar__crumb">
+                {i > 0 && <span className="topbar__crumb-separator">/</span>}
                 {c.to ? (
                   <a
                     href={c.to}
@@ -128,75 +127,72 @@ export function TopBar() {
                       const target = c.to
                       if (target) void navigate(target)
                     }}
-                    className="truncate text-jelly-muted hover:text-jelly-text transition-colors"
+                    className="topbar__crumb-link"
                   >
                     {c.label}
                   </a>
                 ) : (
-                  <span className="truncate text-jelly-text">{c.label}</span>
+                  <span className="topbar__crumb-current">{c.label}</span>
                 )}
               </span>
             ))}
           </nav>
         </div>
 
-        {/* 中：搜索框 */}
-        <div className="flex-1 flex justify-center">
-          <SearchSuggest />
+        <div className="topbar__search">
+          <SearchSuggest className="topbar__search-box" />
         </div>
 
-        {/* 右：返回按钮 + 用户菜单 */}
-        <div className="flex items-center gap-1 shrink-0">
-          {/* 返回按钮 */}
-          <button
+        <div className="topbar__actions">
+          <IconButton
             type="button"
             onClick={() => { void navigate(-1) }}
             aria-label="返回"
-            className="p-2 rounded-md text-jelly-muted hover:text-jelly-text hover:bg-white/5 transition"
+            className="topbar__action"
             title="返回上一页"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="19" y1="12" x2="5" y2="12" />
               <polyline points="12 19 5 12 12 5" />
             </svg>
-          </button>
+          </IconButton>
 
-          {/* 用户菜单 */}
-          <div className="relative" data-user-menu>
+          <div className="topbar__user" data-user-menu>
             <button
               type="button"
               onClick={() => setUserMenuOpen((v) => !v)}
               className={cx(
-                'p-0.5 rounded-full hover:bg-white/10 transition flex items-center',
-                userMenuOpen && 'bg-white/10',
+                'topbar__user-button',
+                userMenuOpen && 'is-open',
               )}
               aria-label="用户菜单"
             >
-              <div className="w-8 h-8 rounded-full bg-jelly-hover overflow-hidden shrink-0 flex items-center justify-center text-jelly-muted text-xs font-medium border border-white/10">
+              <div className="topbar__avatar">
                 {avatarSrc ? (
-                  <img alt="" src={avatarSrc} className="w-full h-full object-cover" />
+                  <img alt="" src={avatarSrc} />
                 ) : (
                   <span>{(user?.name || 'U').slice(0, 1).toUpperCase()}</span>
                 )}
+                <StatusDot className="topbar__avatar-dot" />
               </div>
             </button>
 
             {userMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-48 z-50 bg-jelly-card border border-white/10 rounded-lg shadow-2xl overflow-hidden py-1">
-                <div className="px-3 py-2 border-b border-white/5">
-                  <div className="text-sm text-jelly-text truncate font-medium">
+              <div className="topbar__menu">
+                <div className="topbar__menu-head">
+                  <div className="topbar__menu-name">
                     {user?.name || '未登录'}
                   </div>
                   {user?.id && (
-                    <div className="text-xs text-jelly-muted truncate mt-0.5">ID: {user.id.slice(0, 8)}…</div>
+                    <div className="topbar__menu-meta">ID: {user.id.slice(0, 8)}...</div>
                   )}
                 </div>
                 <Link
                   to="/settings"
                   onClick={() => setUserMenuOpen(false)}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-jelly-text hover:bg-white/5 transition"
+                  className="topbar__menu-item"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="topbar__menu-icon">
                     <circle cx="12" cy="12" r="3" />
                     <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
                   </svg>
@@ -205,9 +201,9 @@ export function TopBar() {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-red-300 hover:bg-white/5 transition"
+                  className="topbar__menu-item topbar__menu-item--danger"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="topbar__menu-icon">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                     <polyline points="16 17 21 12 16 7" />
                     <line x1="21" y1="12" x2="9" y2="12" />

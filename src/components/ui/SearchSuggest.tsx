@@ -6,6 +6,7 @@ import { getImageUrl } from '@/api/images'
 import { debounce, cx } from '@/utils'
 import type { SearchHint } from '@/api/types'
 import { formatDurationShort, ticksToSeconds } from '@/utils/time'
+import './SearchSuggest.scss'
 
 /**
  * 搜索建议组件：输入关键词 → debounce 后调用 searchHints → 下拉显示 ≤10 条。
@@ -81,8 +82,8 @@ export function SearchSuggest({ className }: { className?: string }) {
   const displayHints = open && term.trim().length > 0
 
   return (
-    <div ref={wrapRef} className={cx('relative w-full max-w-xl', className)}>
-      <form onSubmit={handleSubmit} className="relative">
+    <div ref={wrapRef} className={cx('search-suggest', className)}>
+      <form onSubmit={handleSubmit} className="search-suggest__form">
         <svg
           viewBox="0 0 24 24"
           fill="none"
@@ -90,7 +91,7 @@ export function SearchSuggest({ className }: { className?: string }) {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-jelly-muted pointer-events-none"
+          className="search-suggest__icon"
         >
           <circle cx="11" cy="11" r="8" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -108,19 +109,19 @@ export function SearchSuggest({ className }: { className?: string }) {
             closeTimer.current = setTimeout(() => setOpen(false), 180)
           }}
           placeholder="搜索影片、剧集、演员…"
-          className="input bg-jelly-panel pl-9"
+          className="search-suggest__input"
         />
         {loading && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-jelly-muted border-t-transparent rounded-full animate-spin" />
+          <div className="search-suggest__spinner" />
         )}
       </form>
 
       {displayHints && (
-        <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-jelly-card border border-white/10 rounded-lg shadow-2xl overflow-hidden">
+        <div className="search-suggest__panel">
           {hints.length === 0 && !loading && (
-            <div className="px-4 py-6 text-sm text-jelly-muted text-center">未找到相关结果</div>
+            <div className="search-suggest__empty">未找到相关结果</div>
           )}
-          <ul className="max-h-96 overflow-y-auto py-1">
+          <ul className="search-suggest__list">
             {hints.map((h) => {
               const thumb =
                 h.thumbImageItemId && h.thumbImageTag
@@ -148,29 +149,28 @@ export function SearchSuggest({ className }: { className?: string }) {
                       e.preventDefault()
                       handlePick(h)
                     }}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-white/5 transition-colors"
+                    className="search-suggest__item"
                   >
-                    <div className="w-14 h-9 md:w-16 md:h-10 shrink-0 rounded overflow-hidden bg-jelly-hover">
+                    <div className="search-suggest__thumb">
                       {thumb ? (
                         <img
                           src={thumb}
                           alt=""
                           loading="lazy"
-                          className="w-full h-full object-cover"
                           onError={(e) => {
                             e.currentTarget.onerror = null
                             e.currentTarget.style.visibility = 'hidden'
                           }}
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-jelly-muted text-xs">
+                        <div className="search-suggest__thumb-empty">
                           无图
                         </div>
                       )}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm text-jelly-text truncate">{h.name || '未命名'}</div>
-                      <div className="text-xs text-jelly-muted truncate">
+                    <div className="search-suggest__item-main">
+                      <div className="search-suggest__item-title">{h.name || '未命名'}</div>
+                      <div className="search-suggest__item-meta">
                         {subParts.join(' · ')}
                       </div>
                     </div>

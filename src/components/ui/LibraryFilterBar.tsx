@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useAuthStore } from '@/store/auth'
 import { getGenres } from '@/api/library'
 import { debounce, cx } from '@/utils'
+import './LibraryFilterBar.scss'
 
 export interface LibraryFilterState {
   sortBy: string
@@ -99,11 +100,10 @@ export function LibraryFilterBar({ viewId, value, onChange }: LibraryFilterBarPr
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-3">
-        {/* 搜索 */}
-        <div className="flex-1 min-w-[200px]">
-          <div className="relative">
+    <div className="filter-bar">
+      <div className="filter-bar__row filter-bar__row--primary">
+        <div className="filter-bar__search">
+          <div className="filter-bar__search-wrap">
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -111,7 +111,7 @@ export function LibraryFilterBar({ viewId, value, onChange }: LibraryFilterBarPr
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-jelly-muted pointer-events-none"
+              className="filter-bar__search-icon"
             >
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -124,18 +124,17 @@ export function LibraryFilterBar({ viewId, value, onChange }: LibraryFilterBarPr
                 debouncedSearch(e.target.value)
               }}
               placeholder="搜索该媒体库…"
-              className="input bg-jelly-panel pl-9"
+              className="filter-bar__input filter-bar__input--search"
             />
           </div>
         </div>
 
-        {/* 排序方式 */}
-        <label className="flex items-center gap-2">
-          <span className="text-sm text-jelly-muted shrink-0">排序</span>
+        <label className="filter-bar__field">
+          <span className="filter-bar__label">排序</span>
           <select
             value={value.sortBy}
             onChange={(e) => update('sortBy', e.target.value)}
-            className="input bg-jelly-panel !py-1.5 w-auto text-sm min-w-[110px]"
+            className="filter-bar__select"
           >
             {SORT_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -146,7 +145,7 @@ export function LibraryFilterBar({ viewId, value, onChange }: LibraryFilterBarPr
           <select
             value={value.sortOrder}
             onChange={(e) => update('sortOrder', e.target.value as 'Ascending' | 'Descending')}
-            className="input bg-jelly-panel !py-1.5 w-auto text-sm"
+            className="filter-bar__select filter-bar__select--small"
           >
             <option value="Ascending">升序</option>
             <option value="Descending">降序</option>
@@ -154,14 +153,13 @@ export function LibraryFilterBar({ viewId, value, onChange }: LibraryFilterBarPr
         </label>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        {/* 类型 */}
-        <label className="flex items-center gap-2">
-          <span className="text-sm text-jelly-muted shrink-0">类型</span>
+      <div className="filter-bar__row">
+        <label className="filter-bar__field">
+          <span className="filter-bar__label">类型</span>
           <select
             value={value.genre}
             onChange={(e) => update('genre', e.target.value)}
-            className="input bg-jelly-panel !py-1.5 w-auto text-sm min-w-[140px] max-w-[220px]"
+            className="filter-bar__select filter-bar__select--wide"
           >
             <option value="">全部</option>
             {genres.map((g) => (
@@ -172,9 +170,8 @@ export function LibraryFilterBar({ viewId, value, onChange }: LibraryFilterBarPr
           </select>
         </label>
 
-        {/* 年份预设 */}
-        <label className="flex items-center gap-2">
-          <span className="text-sm text-jelly-muted shrink-0">年代</span>
+        <label className="filter-bar__field">
+          <span className="filter-bar__label">年代</span>
           <select
             value={
               YEAR_PRESETS.find(
@@ -188,7 +185,7 @@ export function LibraryFilterBar({ viewId, value, onChange }: LibraryFilterBarPr
               const [f, t] = e.target.value.split('-')
               applyYearPreset(f === '' ? '' : Number(f), t === '' ? '' : Number(t))
             }}
-            className="input bg-jelly-panel !py-1.5 w-auto text-sm"
+            className="filter-bar__select"
           >
             {YEAR_PRESETS.map((p) => (
               <option key={`${p.from}-${p.to}`} value={`${p.from}-${p.to}`}>
@@ -201,8 +198,7 @@ export function LibraryFilterBar({ viewId, value, onChange }: LibraryFilterBarPr
           </select>
         </label>
 
-        {/* 已看筛选 */}
-        <div className="inline-flex rounded-md overflow-hidden border border-white/10">
+        <div className="filter-bar__segments">
           {(
             [
               { key: 'all', label: '全部' },
@@ -215,10 +211,8 @@ export function LibraryFilterBar({ viewId, value, onChange }: LibraryFilterBarPr
               type="button"
               onClick={() => update('played', opt.key)}
               className={cx(
-                'px-3 py-1.5 text-sm transition-colors',
-                value.played === opt.key
-                  ? 'bg-jelly-accent text-white'
-                  : 'bg-jelly-panel text-jelly-muted hover:text-jelly-text hover:bg-jelly-hover',
+                'filter-bar__segment',
+                value.played === opt.key && 'is-active',
               )}
             >
               {opt.label}
@@ -226,11 +220,10 @@ export function LibraryFilterBar({ viewId, value, onChange }: LibraryFilterBarPr
           ))}
         </div>
 
-        {/* 重置 */}
         <button
           type="button"
           onClick={() => onChange(DEFAULT_FILTER)}
-          className="btn-ghost !py-1.5 text-xs ml-auto"
+          className="filter-bar__reset"
         >
           重置
         </button>

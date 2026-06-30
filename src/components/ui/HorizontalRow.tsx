@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { BaseItemDto } from '@/api/types'
 import { PosterCard, type PosterSize, type PosterShape } from './PosterCard'
 import { cx } from '@/utils'
+import './HorizontalRow.scss'
 
 interface HorizontalRowProps {
   title: ReactNode
@@ -34,43 +35,37 @@ export function HorizontalRow({
   if (!loading && (!items || items.length === 0)) return null
 
   // 每张卡片在横滚容器中的宽度
-  const widthClass = cx(
-    // shrink-0 保证不被压缩；basis 控制尺寸
-    'shrink-0',
-    size === 'sm' && 'w-28 md:w-32',
-    size === 'md' && 'w-36 md:w-44',
-    size === 'lg' && 'w-48 md:w-60',
-  )
+  const itemClass = cx('media-row__item', `media-row__item--${size}`)
 
   const skeletonCount = 8
   const aspectClass =
-    shape === 'poster' ? 'aspect-[2/3]' : shape === 'backdrop' ? 'aspect-video' : 'aspect-square'
+    shape === 'poster' ? 'is-poster' : shape === 'backdrop' ? 'is-backdrop' : 'is-square'
 
   return (
-    <section className={cx('space-y-3', className)}>
-      <header className="flex items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold text-jelly-text truncate">{title}</h2>
+    <section className={cx('media-row', className)}>
+      <header className="media-row__header">
+        <h2 className="media-row__title">{title}</h2>
         {seeMoreHref && (
           <Link
             to={seeMoreHref}
-            className="text-sm text-jelly-muted hover:text-jelly-accent shrink-0 transition-colors"
+            className="media-row__more"
           >
-            查看更多 →
+            查看更多
           </Link>
         )}
       </header>
 
-      <div className="overflow-x-auto flex gap-4 py-2 px-1 -mx-1">
+      <div className="media-row__scroller">
         {loading
           ? Array.from({ length: skeletonCount }).map((_, i) => (
-              <div key={i} className={widthClass}>
-                <div className={cx('skeleton rounded-lg', aspectClass)} />
-                <div className="mt-2 h-3 skeleton w-3/4 rounded" />
-                <div className="mt-1 h-3 skeleton w-1/2 rounded" />
+              <div key={i} className={itemClass}>
+                <div className={cx('media-row__skeleton skeleton', aspectClass)} />
+                <div className="media-row__skeleton-line skeleton" />
+                <div className="media-row__skeleton-line media-row__skeleton-line--short skeleton" />
               </div>
             ))
           : items.map((item) => (
-              <div key={item.id} className={widthClass}>
+              <div key={item.id} className={itemClass}>
                 <PosterCard
                   item={item}
                   size={size}
@@ -78,7 +73,7 @@ export function HorizontalRow({
                   showPlayButton={itemClickMode === 'play'}
                   clickMode={itemClickMode}
                 />
-                <div className="mt-1.5 truncate text-xs text-jelly-text" title={item.name}>
+                <div className="media-row__caption" title={item.name}>
                   {item.name || '未命名'}
                 </div>
               </div>

@@ -6,8 +6,10 @@ import type { UserView } from '@/api/users'
 import { useAsync } from '@/hooks/useAsync'
 import { HorizontalRow } from '@/components/ui/HorizontalRow'
 import { collectionTypeLabel } from '@/components/layout/Sidebar'
-import { getImageUrl } from '@/api/images'
+import { backdropUrl, getImageUrl, thumbUrl } from '@/api/images'
+import { PageSection } from '@/components/ui/primitives'
 import { cx } from '@/utils'
+import './HomePage.scss'
 
 /**
  * 首页：
@@ -68,39 +70,43 @@ export function HomePage() {
 
   const views = viewsAsync.data?.items || []
   const latestMap = latest.data || {}
+  const resumeItems = resume.data?.items || []
+  const heroItem = resumeItems[0]
 
   return (
-    <div className="space-y-8 md:space-y-10">
-      <header className="space-y-1.5">
-        <h1 className="text-2xl md:text-3xl font-bold">
+    <div className="home-page">
+      <header className="home-page__header">
+        <h1 className="home-page__title">
           欢迎回来，{user?.name || '朋友'}
         </h1>
-        <p className="text-jelly-muted text-sm md:text-base">今天想看点什么？</p>
+        <p className="home-page__subtitle">今天想看点什么？</p>
       </header>
 
-      {/* 媒体库网格 */}
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-jelly-text">媒体库</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+      {resume.loading && !heroItem ? (
+        <div className="home-hero home-hero--loading skeleton" />
+      ) : heroItem ? (
+        <ContinueHero item={heroItem} sideItems={resumeItems.slice(1, 4)} />
+      ) : null}
+
+      <PageSection title="媒体库" className="home-page__libraries">
+        <div className="home-page__library-grid">
           {viewsAsync.loading
             ? Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="aspect-video rounded-xl skeleton" />
+                <div key={i} className="home-library-card home-library-card--loading skeleton" />
               ))
             : views.map((v) => <MediaLibraryCard key={v.id} view={v} />)}
         </div>
-      </section>
+      </PageSection>
 
-      {/* 继续观看 —— 点击直接播放 */}
       <HorizontalRow
         title="继续观看"
-        items={resume.data?.items || []}
+        items={resumeItems.slice(heroItem ? 1 : 0)}
         loading={resume.loading}
         shape="backdrop"
         itemClickMode="play"
         size="md"
       />
 
-      {/* 下一集 */}
       <HorizontalRow
         title="下一集"
         items={nextUp.data?.items || []}
@@ -108,8 +114,6 @@ export function HomePage() {
         shape="backdrop"
         size="md"
       />
-
-      {/* 每个媒体库的最新添加 */}
       {views.map((v) => (
         <HorizontalRow
           key={v.id}
@@ -125,7 +129,66 @@ export function HomePage() {
   )
 }
 
-/** 媒体库入口卡片：backdrop 比例，叠库名 + 类型 chip */
+function ContinueHero({
+  item,
+  sideItems,
+}: {
+  item: BaseItemDto
+  sideItems: BaseItemDto[]
+}) {
+  const image = backdropUrl(item, { quality: 76, placeholderOnMissing: true })
+  const progress = progressPercent(item)
+  const subtitle = episodeSubtitle(item)
+
+  return (
+    <section className="home-hero">
+      <Link to={`/player/${item.id}`} className="home-hero__feature">
+        <img src={image} alt="" className="home-hero__image" loading="eager" />
+        <div className="home-hero__shade" />
+        <div className="home-hero__content">
+          <div className="home-hero__eyebrow">继续播放</div>
+          <h2 className="home-hero__title">{item.name || '未命名'}</h2>
+          {subtitle ? <div className="home-hero__meta">{subtitle}</div> : null}
+          {progress > 0 ? (
+            <div className="home-hero__progress" aria-label={`播放进度 ${Math.round(progress)}%`}>
+              <span style={{ width: `${progress}%` }} />
+            </div>
+          ) : null}
+          <div className="home-hero__actions">
+            <span className="home-hero__play">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="8 5 19 12 8 19 8 5" />
+              </svg>
+              播放
+            </span>
+          </div>
+        </div>
+      </Link>
+
+      {sideItems.length > 0 ? (
+        <div className="home-hero__side">
+          {sideItems.map((side) => (
+            <Link key={side.id} to={`/player/${side.id}`} className="home-hero__side-item">
+              <img
+                src={thumbUrl(side, { quality: 60, placeholderOnMissing: true })}
+                alt=""
+                loading="lazy"
+              />
+              <div className="home-hero__side-copy">
+                <div className="home-hero__side-title">{side.name || '未命名'}</div>
+                <div className="home-hero__side-meta">{episodeSubtitle(side)}</div>
+                <div className="home-hero__side-progress">
+                  <span style={{ width: `${progressPercent(side)}%` }} />
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
 function MediaLibraryCard({ view }: { view: UserView }) {
   const primary = view.imageTags?.['Primary']
   const backdrop = view.imageTags?.['Backdrop']
@@ -138,8 +201,8 @@ function MediaLibraryCard({ view }: { view: UserView }) {
     <Link
       to={`/library/${view.id}`}
       className={cx(
-        'group relative block rounded-xl overflow-hidden bg-jelly-card',
-        'aspect-video transition-transform hover:-translate-y-0.5 hover:shadow-lg',
+        'home-library-card',
+        !img && 'home-library-card--empty',
       )}
     >
       {img ? (
@@ -148,16 +211,31 @@ function MediaLibraryCard({ view }: { view: UserView }) {
           alt=""
           loading="lazy"
           decoding="async"
-          className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105"
         />
       ) : null}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
-      <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between gap-2">
-        <div className="font-semibold text-white text-sm md:text-base truncate drop-shadow">
+      <div className="home-library-card__shade" />
+      <div className="home-library-card__content">
+        <div className="home-library-card__name">
           {view.name || '未命名'}
         </div>
-        <span className="chip shrink-0">{collectionTypeLabel(view.collectionType)}</span>
+        <span className="chip home-library-card__chip">{collectionTypeLabel(view.collectionType)}</span>
       </div>
     </Link>
   )
+}
+
+function progressPercent(item: BaseItemDto): number {
+  const position = item.userData?.playbackPositionTicks ?? 0
+  const runTime = item.runTimeTicks ?? 0
+  if (position <= 0 || runTime <= 0) return 0
+  return Math.min(100, Math.max(0, (position / runTime) * 100))
+}
+
+function episodeSubtitle(item: BaseItemDto): string {
+  if (item.type === 'Episode') {
+    const season = item.parentIndexNumber ? `S${item.parentIndexNumber}` : ''
+    const episode = item.indexNumber ? `E${item.indexNumber}` : ''
+    return [season, episode].filter(Boolean).join(' · ')
+  }
+  return item.productionYear ? String(item.productionYear) : ''
 }

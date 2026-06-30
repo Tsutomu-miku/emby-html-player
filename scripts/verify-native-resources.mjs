@@ -7,38 +7,68 @@ const root = process.cwd()
 const platform = process.platform
 const arch = process.arch
 const nativeDir = path.join(root, 'resources', 'native', platform, arch)
-const libmpvPath = path.join(nativeDir, platform === 'darwin' ? 'libmpv.2.dylib' : 'libmpv.so')
 const addonPath = path.join(nativeDir, 'ehp_mpv_player.node')
 
-if (!fs.existsSync(libmpvPath)) {
+if (!fs.existsSync(nativeDir)) {
+  fail(`Missing native resource directory: ${path.relative(root, nativeDir)}`)
+}
+
+const libmpvPath = findLibMpvPath(nativeDir)
+if (!libmpvPath) {
   fail([
-    `Missing bundled libmpv runtime: ${path.relative(root, libmpvPath)}`,
+    `Missing bundled libmpv runtime in ${path.relative(root, nativeDir)}`,
+    `Expected ${expectedLibMpvNames().join(' or ')}`,
     'This app must use libmpv embedding and must not spawn a player executable.',
-    'Run bundle:native:mac with a reviewed libmpv.dylib artifact.',
   ].join('\n'))
 }
 
-const stat = fs.statSync(libmpvPath)
-if (!stat.isFile()) {
+if (!fs.statSync(libmpvPath).isFile()) {
   fail(`Bundled libmpv path is not a file: ${path.relative(root, libmpvPath)}`)
 }
-
-if (platform === 'darwin') {
-  if (!fs.existsSync(addonPath)) {
-    fail(`Missing MPV host view addon: ${path.relative(root, addonPath)}`)
-  }
-  if (!fs.statSync(addonPath).isFile()) {
-    fail(`libmpv player addon path is not a file: ${path.relative(root, addonPath)}`)
-  }
-  assertNoForbiddenRuntimeRefs()
-  assertNoProcessMpvBackend()
+if (!fs.existsSync(addonPath)) {
+  fail(`Missing MPV host view addon: ${path.relative(root, addonPath)}`)
 }
+if (!fs.statSync(addonPath).isFile()) {
+  fail(`libmpv player addon path is not a file: ${path.relative(root, addonPath)}`)
+}
+
+if (platform === 'darwin') assertNoForbiddenRuntimeRefs()
+if (platform === 'win32') assertWindowsRuntimeComplete()
+assertNoProcessMpvBackend()
 
 console.warn(`[native] bundled libmpv ok: ${path.relative(root, libmpvPath)}`)
-if (platform === 'darwin') {
-  console.warn(`[native] libmpv player addon ok: ${path.relative(root, addonPath)}`)
+console.warn(`[native] libmpv player addon ok: ${path.relative(root, addonPath)}`)
+
+/**
+ * @returns {string[]}
+ */
+function expectedLibMpvNames() {
+  if (platform === 'darwin') return ['libmpv.2.dylib']
+  if (platform === 'win32') return ['libmpv.dll', 'mpv-2.dll', 'libmpv-2.dll']
+  return ['libmpv.so']
 }
 
+/**
+ * @param {string} dir
+ * @returns {string | undefined}
+ */
+function findLibMpvPath(dir) {
+  return expectedLibMpvNames()
+    .map((name) => path.join(dir, name))
+    .find((candidate) => fs.existsSync(candidate))
+}
+
+/**
+ * @returns {void}
+ */
+function assertWindowsRuntimeComplete() {
+  const dlls = fs.readdirSync(nativeDir).filter((name) => name.toLowerCase().endsWith('.dll'))
+  if (dlls.length === 0) fail(`Windows native runtime has no DLL files: ${path.relative(root, nativeDir)}`)
+}
+
+/**
+ * @returns {void}
+ */
 function assertNoForbiddenRuntimeRefs() {
   const files = fs.readdirSync(nativeDir).filter((name) => name.endsWith('.dylib') || name.endsWith('.node'))
   for (const file of files) {
@@ -50,6 +80,9 @@ function assertNoForbiddenRuntimeRefs() {
   }
 }
 
+/**
+ * @returns {void}
+ */
 function assertNoProcessMpvBackend() {
   const files = [
     path.join(root, 'electron', 'main'),

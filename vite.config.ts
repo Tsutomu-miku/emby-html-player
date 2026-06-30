@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import path from 'node:path'
 
 export default defineConfig({
-  // GitHub Pages: https://Tsutomu-miku.github.io/emby-html-player/ 需要 base
+  // Web-only renderer debug / historical GitHub Pages output keeps this base.
   base: process.env.VITE_BASE_URL ?? '/emby-html-player/',
   plugins: [react()],
   resolve: {

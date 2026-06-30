@@ -4,6 +4,8 @@ import { useAuthStore } from '@/store/auth'
 import { getUserViews, type UserView } from '@/api'
 import { getImageUrl } from '@/api/images'
 import { cx } from '@/utils'
+import { StatusDot } from '@/components/ui/primitives'
+import './Sidebar.scss'
 
 /**
  * 侧边栏：
@@ -48,27 +50,14 @@ export function Sidebar() {
   }
 
   return (
-    <aside
-      className={cx(
-        'bg-jelly-panel border-b md:border-b-0 md:border-r border-white/5',
-        'px-3 md:px-4 py-3 md:py-4',
-        'flex md:flex-col gap-1 md:gap-1',
-        'overflow-x-auto md:overflow-y-auto md:shrink-0 md:w-56',
-        'md:min-h-screen',
-      )}
-    >
-      {/* Logo */}
-      <Link
-        to="/"
-        className="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-md text-white font-semibold"
-      >
-        <span className="inline-block w-7 h-7 rounded-md bg-jelly-accent text-white flex items-center justify-center text-sm font-bold">
+    <aside className="sidebar">
+      <Link to="/" className="sidebar__brand">
+        <span className="sidebar__brand-mark">
           E
         </span>
-        <span className="hidden sm:inline">Emby Desktop</span>
+        <span className="sidebar__brand-text">Emby Desktop</span>
       </Link>
 
-      {/* 首页导航 */}
       <SidebarNavLink to="/" active={location.pathname === '/'} exactMatch>
         <svg
           viewBox="0 0 24 24"
@@ -77,33 +66,30 @@ export function Sidebar() {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="w-4 h-4 shrink-0"
+          className="sidebar__icon"
         >
           <path d="M3 9.5 12 3l9 6.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1V9.5Z" />
         </svg>
         <span>首页</span>
       </SidebarNavLink>
 
-      {/* 媒体库分区标题（仅桌面端） */}
-      <div className="mt-1 text-xs uppercase text-jelly-muted px-3 hidden md:block tracking-wider">
+      <div className="sidebar__section-title">
         媒体库
       </div>
 
-      {/* 媒体库列表 */}
-      <div className="contents md:contents">
+      <div className="sidebar__library-list">
         {views.map((v) => (
           <SidebarNavLink
             key={v.id}
             to={`/library/${v.id}`}
             active={location.pathname.startsWith(`/library/${v.id}`)}
           >
-            <span className="flex-1 truncate">{v.name || '未命名'}</span>
-            <span className="chip shrink-0">{collectionTypeLabel(v.collectionType)}</span>
+            <span className="sidebar__label">{v.name || '未命名'}</span>
+            <span className="chip sidebar__chip">{collectionTypeLabel(v.collectionType)}</span>
           </SidebarNavLink>
         ))}
       </div>
 
-      {/* 设置入口（桌面端底部，用户信息上方） */}
       <SidebarNavLink to="/settings" active={location.pathname === '/settings'}>
         <svg
           viewBox="0 0 24 24"
@@ -112,7 +98,7 @@ export function Sidebar() {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="w-4 h-4 shrink-0"
+          className="sidebar__icon"
         >
           <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
@@ -120,21 +106,21 @@ export function Sidebar() {
         <span>设置</span>
       </SidebarNavLink>
 
-      {/* 底部用户信息（仅桌面端） */}
-      <div className="mt-auto hidden md:block pt-3 border-t border-white/5 mt-4">
-        <div className="flex items-center gap-2 p-2 rounded bg-white/5">
-          <div className="w-8 h-8 rounded-full bg-jelly-hover overflow-hidden shrink-0 flex items-center justify-center text-jelly-muted text-xs font-medium">
+      <div className="sidebar__user">
+        <div className="sidebar__user-card">
+          <div className="sidebar__avatar">
             {avatarSrc ? (
-              <img alt="" src={avatarSrc} className="w-full h-full object-cover" />
+              <img alt="" src={avatarSrc} />
             ) : (
               <span>{(user?.name || 'U').slice(0, 1).toUpperCase()}</span>
             )}
+            <StatusDot className="sidebar__avatar-dot" />
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm text-jelly-text truncate">{user?.name || '未登录'}</div>
+          <div className="sidebar__user-main">
+            <div className="sidebar__user-name">{user?.name || '未登录'}</div>
             <button
               onClick={handleLogout}
-              className="text-xs text-jelly-muted hover:text-jelly-text underline underline-offset-2"
+              className="sidebar__logout"
               type="button"
             >
               退出登录
@@ -164,11 +150,7 @@ function SidebarNavLink({
       to={to}
       end={exactMatch}
       className={({ isActive }) =>
-        cx(
-          'shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm transition',
-          'text-jelly-text hover:bg-white/5',
-          (isActive || active) && 'bg-white/10 text-white',
-        )
+        cx('sidebar__nav-link', (isActive || active) && 'is-active')
       }
     >
       {children}

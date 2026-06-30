@@ -1,18 +1,19 @@
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
+import './Layout.scss'
 
 /**
  * 应用壳：Sidebar（移动端横排 / 桌面端竖排）+ 右侧 TopBar + Outlet。
  */
 export function Layout() {
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-jelly-bg">
+    <div className="app-shell">
       <Sidebar />
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="app-shell__content">
         <TopBar />
-        <main className="flex-1">
-          <div className="px-4 md:px-8 py-5 md:py-6 max-w-[1600px] mx-auto">
+        <main className="app-shell__main">
+          <div className="app-shell__container">
             <Outlet />
           </div>
         </main>
