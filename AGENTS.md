@@ -38,6 +38,7 @@
   - `src/` —— 渲染进程，React + Vite + TS，与原 H5 版本共用。
 - **渲染进程禁止直接使用 Node API**：`nodeIntegration: false`，`contextIsolation: true`。所有需要 Node 能力的操作走 IPC。
 - **CORS 由主进程统一注入**：渲染进程不需要也不能自行处理 CORS。主进程在 `app.ready` 后给 `defaultSession` 注册 `onHeadersReceived`，对所有响应追加 `Access-Control-Allow-*` 头。
+- **Electron 视觉验证不得默认使用系统全屏截图**：调试播放器、页面或设计还原时，优先使用 Chrome DevTools Protocol / Electron WebContents 对目标窗口或目标 target 截图，或读取 DOM/主进程日志。禁止默认使用 `screencapture` 全屏截图影响用户日常桌面；只有用户明确要求或 CDP 不可用且必须确认原生层画面时，才允许临时使用系统截图，并需提前说明。
 - 构建命令：
   - `pnpm dev` —— 启动 electron-vite dev（主进程 + 渲染进程同时热重载）；
   - `pnpm build` —— 构建渲染进程到 `out/renderer/`，主进程到 `out/main/`；
