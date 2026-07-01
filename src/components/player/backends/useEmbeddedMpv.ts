@@ -117,6 +117,8 @@ export function useEmbeddedMpv(params: UseEmbeddedMpvParams): PlayerControl | un
           latestRef.current.onError(event.message ?? 'MPV 播放失败')
           break
         case 'ready':
+        case 'metadata':
+        case 'ui-action':
           break
       }
     })

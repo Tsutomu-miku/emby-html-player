@@ -24,6 +24,25 @@ export interface MpvCommandRequest {
 
 export type MpvEvent =
   | { type: 'ready' }
+  | {
+      type: 'metadata'
+      title: string
+      mediaSources?: unknown[]
+      currentMediaSourceId?: string
+      audioStreams?: unknown[]
+      currentAudioIndex?: number
+      subtitleStreams?: unknown[]
+      currentSubtitleIndex?: number | null
+      playMethod?: string
+      playbackRate?: number
+      hasPrev?: boolean
+      hasNext?: boolean
+    }
+  | {
+      type: 'ui-action'
+      action: 'back' | 'prev' | 'next' | 'media-source'
+      value?: string
+    }
   | { type: 'started' }
   | { type: 'time'; seconds: number }
   | { type: 'duration'; seconds: number }

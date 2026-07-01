@@ -22,6 +22,11 @@ const __dir = import.meta.dirname
 const DEV_SERVER_URL = process.env['ELECTRON_RENDERER_URL'] ?? ''
 const isDev = !!DEV_SERVER_URL
 const DEBUG_LOGS = process.env['EHP_DEBUG_LOGS'] === '1'
+const REMOTE_DEBUGGING_PORT = process.env['EHP_REMOTE_DEBUGGING_PORT']
+
+if (isDev && REMOTE_DEBUGGING_PORT) {
+  app.commandLine.appendSwitch('remote-debugging-port', REMOTE_DEBUGGING_PORT)
+}
 
 let mainWindow: BrowserWindow | null = null
 let embyAuth: EmbyAuthState = emptyEmbyAuth()

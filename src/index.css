@@ -34,6 +34,12 @@ body,
   -moz-osx-font-smoothing: grayscale;
 }
 
+html[data-mpv-overlay='true'],
+html[data-mpv-overlay='true'] body,
+html[data-mpv-overlay='true'] #app {
+  background: transparent !important;
+}
+
 * {
   box-sizing: border-box;
 }

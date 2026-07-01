@@ -16,10 +16,14 @@ import { filterStreams, isTextSubtitle } from './parts/selectors'
 import { applySubtitleFontScale, syncTextTrackMode } from './parts/subtitles'
 import { useIntroSkip } from './parts/useIntroSkip'
 import { useControlsVisibility } from './parts/useControlsVisibility'
+import { usePlayerEpisodeBindings } from './parts/usePlayerEpisodeBindings'
+import { usePlayerSettings } from './parts/usePlayerSettings'
 import { OverlayError, OverlayLoading } from './parts/overlays'
 import { useVideoSource } from './parts/useVideoSource'
 import { useTranscodeFallback } from './parts/useTranscodeFallback'
 import { useEmbeddedMpv } from './backends/useEmbeddedMpv'
+import { useMpvOverlayActions } from './backends/useMpvOverlayActions'
+import { useMpvOverlayMetadata } from './backends/useMpvOverlayMetadata'
 import { useMpvReporting } from './backends/useMpvReporting'
 import { usePlayerLoader } from './parts/usePlayerLoader'
 
@@ -39,7 +43,6 @@ export interface PlayerProps {
   children?: React.ReactNode
 }
 
-/* ======== 主组件 ======== */
 export function Player(props: PlayerProps) {
   const {
     itemId, startPositionTicks, seriesId, defaultAudioIndex,
@@ -49,39 +52,11 @@ export function Player(props: PlayerProps) {
 
   const userId = useAuthStore((s) => s.userId)
 
-  // ====== Settings 选择器（全部用原始值 selector，避免每次渲染返回新对象
-  //        触发 zustand getSnapshot should be cached 警告，同时避免无谓重渲染） ======
-  const setSettings = useSettingsStore((s) => s.set)
-  const rememberPlaybackRate = useSettingsStore((s) => s.rememberPlaybackRate)
-  const subtitleFontScale = useSettingsStore((s) => s.subtitleFontScale)
-  const enableIntroSkip = useSettingsStore((s) => s.enableIntroSkip)
-  const introSkipStartSeconds = useSettingsStore((s) => s.introSkipStartSeconds)
-  const introSkipEndSeconds = useSettingsStore((s) => s.introSkipEndSeconds)
-  const introSkipUseKeywordDetect = useSettingsStore((s) => s.introSkipUseKeywordDetect)
-  const enableCreditsSkip = useSettingsStore((s) => s.enableCreditsSkip)
-  const creditsSkipThresholdSeconds = useSettingsStore((s) => s.creditsSkipThresholdSeconds)
-
-  const playMode = useSettingsStore((s) => s.playMode)
-  const maxBitrateBps = useSettingsStore((s) => s.maxBitrateBps)
-  const maxAudioChannels = useSettingsStore((s) => s.maxAudioChannels)
-  const sourceStrategy = useSettingsStore((s) => s.sourceStrategy)
-  const preferredAudioLangs = useSettingsStore((s) => s.preferredAudioLanguages)
-  const preferredSubLangs = useSettingsStore((s) => s.preferredSubtitleLanguages)
-  const subtitleAutoSelect = useSettingsStore((s) => s.subtitleAutoSelect)
-  const burnInPolicy = useSettingsStore((s) => s.burnInPolicy)
-  const subtitleForcedOnly = useSettingsStore((s) => s.subtitleForcedOnly)
-  const resumeRewindSeconds = useSettingsStore((s) => s.resumeRewindSeconds)
-
-  // 读取 settings 的快照对象（在 doLoad 里同步消费，不用放 deps）
-  const readSettings = useMemo(() => ({
-    playMode, maxBitrateBps, maxAudioChannels, sourceStrategy,
-    preferredAudioLangs, preferredSubLangs,
-    subtitleAutoSelect, burnInPolicy, subtitleForcedOnly, resumeRewindSeconds,
-  }), [
-    playMode, maxBitrateBps, maxAudioChannels, sourceStrategy,
-    preferredAudioLangs, preferredSubLangs,
-    subtitleAutoSelect, burnInPolicy, subtitleForcedOnly, resumeRewindSeconds,
-  ])
+  const {
+    setSettings, rememberPlaybackRate, subtitleFontScale, enableIntroSkip,
+    introSkipStartSeconds, introSkipEndSeconds, introSkipUseKeywordDetect,
+    enableCreditsSkip, creditsSkipThresholdSeconds, readSettings,
+  } = usePlayerSettings()
 
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -134,10 +109,6 @@ export function Player(props: PlayerProps) {
     itemInfo, doLoad,
   } = loader
 
-  /* ========== 首次加载：itemId / userId 变化时触发 doLoad ==========
-     不把 doLoad 放 deps：doLoad 的 deps 含 startPositionTicks 等会变化的值，
-     重新触发会导致重复加载。itemId 变化时 doLoad 内部若 startPositionTicks 为 0
-     会 fallback 到 getItem 拿 userData.playbackPositionTicks，所以闭包捕获 0 也安全。 */
   useEffect(() => {
     if (!itemId || !userId) return
     void doLoad()
@@ -146,7 +117,6 @@ export function Player(props: PlayerProps) {
 
   const { controlsVisible } = useControlsVisibility(videoRef, containerRef, mpvControlRef)
 
-  /* ========== 切源 / 切音轨 / 切字幕 ========== */
   const handleMediaSourceChange = useCallback((id: string) => {
     const resumeSec = videoRef.current?.currentTime ?? 0
     void doLoad({ newMediaSourceId: id, overrideAudioIndex: selectedAudioIndex, overrideSubtitleIndex: selectedSubtitleIndex, resumeSeconds: resumeSec })
@@ -259,22 +229,18 @@ export function Player(props: PlayerProps) {
   })
   mpvControlRef.current = mpvControl
 
-  /* ========== 字幕 ::cue 缩放 ========== */
   useEffect(() => {
     if (containerRef.current) applySubtitleFontScale(containerRef.current, subtitleFontScale)
   }, [subtitleFontScale])
 
-  /* ========== 字幕 index 同步 ========== */
   useEffect(() => {
     if (videoRef.current) syncTextTrackMode(videoRef.current, selectedSubtitleIndex)
   }, [selectedSubtitleIndex, currentUrl])
 
-  /* ========== 倍速记忆 ========== */
   useEffect(() => {
     if (rememberPlaybackRate && playbackRate > 0) setSettings('defaultPlaybackRate', playbackRate)
   }, [playbackRate, rememberPlaybackRate, setSettings])
 
-  /* ========== 上报 + 快捷键 + MediaSession ========== */
   usePlaybackReporting({
     itemId,
     mediaSourceId: selectedMediaSource?.id,
@@ -299,6 +265,22 @@ export function Player(props: PlayerProps) {
 
   const subtitleStreams = useMemo(() => filterStreams(selectedMediaSource?.mediaStreams ?? [], 'Subtitle'), [selectedMediaSource])
   const audioStreams = useMemo(() => filterStreams(selectedMediaSource?.mediaStreams ?? [], 'Audio'), [selectedMediaSource])
+
+  useMpvOverlayMetadata({
+    enabled: playbackBackend === 'mpv' && loadState === 'ready',
+    itemId,
+    itemInfo,
+    mediaSources: playbackInfoMediaSources,
+    currentMediaSourceId: selectedMediaSource?.id,
+    audioStreams,
+    currentAudioIndex: selectedAudioIndex,
+    subtitleStreams,
+    currentSubtitleIndex: selectedSubtitleIndex,
+    playMethod,
+    playbackRate,
+    hasPrev,
+    hasNext,
+  })
 
   const cycleSubtitles = useCallback(() => {
     if (!subtitleStreams.length) return
@@ -340,20 +322,10 @@ export function Player(props: PlayerProps) {
     handleMediaSourceChange(next.id)
   }
 
-  /* ========== 暴露给父组件 ========== */
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    ;(el as HTMLDivElement & { __playerBindHandlers?: (opt: { hasPrev?: boolean; hasNext?: boolean; onPrev?: () => void; onNext?: () => void }) => void }).__playerBindHandlers = (opt) => {
-      if (opt.hasPrev !== undefined) setHasPrev(opt.hasPrev)
-      if (opt.hasNext !== undefined) setHasNext(opt.hasNext)
-      if (opt.onPrev !== undefined) prevHandlerRef.current = opt.onPrev
-      if (opt.onNext !== undefined) nextHandlerRef.current = opt.onNext
-    }
-    el.dispatchEvent(new CustomEvent('player-ready', { detail: { itemId } }))
-  }, [itemId])
+  usePlayerEpisodeBindings({
+    containerRef, itemId, setHasPrev, setHasNext, prevHandlerRef, nextHandlerRef,
+  })
 
-  // ========== 传给 Controls 的稳定回调引用（避免 inline lambda 每次渲染重传）==========
   const handlePlaybackRateChange = useCallback((r: number) => {
     setPlaybackRate(r)
     const v = videoRef.current
@@ -368,6 +340,13 @@ export function Player(props: PlayerProps) {
     const v = videoRef.current
     if (v && v.playbackRate !== playbackRate) setPlaybackRate(v.playbackRate)
   }, [playbackRate])
+  useMpvOverlayActions({
+    enabled: playbackBackend === 'mpv',
+    onBack: handleBack,
+    onPrev: handlePrev,
+    onNext: handleNext,
+    onMediaSourceChange: handleMediaSourceChange,
+  })
   const hasOtherSource = playbackInfoMediaSources.length > 1
   const showLoadingOverlay =
     loadState === 'loading' ||
