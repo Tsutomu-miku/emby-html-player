@@ -165,6 +165,11 @@ export function ItemDetailPage() {
   // ============ Render ============
   const backdropSrc = backdropUrl(item, { quality: 80, placeholderOnMissing: true })
   const posterSrc = posterUrl(item, { quality: 80, placeholderOnMissing: true })
+  const isVideoLikeItem =
+    type === 'Movie' ||
+    type === 'Trailer' ||
+    type === 'Video' ||
+    type === 'MusicVideo'
 
   return (
     <div className="item-detail-page">
@@ -187,6 +192,13 @@ export function ItemDetailPage() {
         onToggleOverview={() => setOverviewExpanded((v) => !v)}
       />
 
+      {isVideoLikeItem && (
+        <SimilarSection
+          items={similarState.data ? similarState.data.items : []}
+          loading={similarState.loading}
+        />
+      )}
+
       {item.people && item.people.length > 0 && <CastList people={item.people} />}
 
       <SeasonEpisodePanel
@@ -200,16 +212,6 @@ export function ItemDetailPage() {
         episodesError={ep.episodesError}
         siblingEpisodes={ep.siblings}
       />
-
-      {(type === 'Movie' ||
-        type === 'Trailer' ||
-        type === 'Video' ||
-        type === 'MusicVideo') && (
-        <SimilarSection
-          items={similarState.data?.items || []}
-          loading={similarState.loading}
-        />
-      )}
 
       {(type === 'BoxSet' ||
         type === 'Folder' ||

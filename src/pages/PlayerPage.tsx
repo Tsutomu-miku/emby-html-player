@@ -1,5 +1,4 @@
-/* eslint-disable max-lines -- PlayerPage glue 含多段 JSX/面包屑/收藏/简介，346 行 ≤ 400 符合特例 */
-/* eslint-disable max-lines-per-function -- PlayerPage 页面级组件（路由+hooks+JSX），强耦合无法拆分到独立组件，346 行 ≤ 400 符合特例 */
+/* eslint-disable max-lines-per-function -- PlayerPage 页面级组件（路由+hooks+JSX），强耦合无法拆分到独立组件，308 行符合特例 */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Player } from '@/components/player/Player'
@@ -11,8 +10,10 @@ import { formatDurationShort, ticksToSeconds } from '@/utils/time'
 import { buildDeviceProfile } from '@/api/playback'
 import { useEpisodeData } from './player/hooks/useEpisodeData'
 import { useNextEpisode } from './player/hooks/useNextEpisode'
+import { useRelatedItems } from './player/hooks/useRelatedItems'
 import { NextEpisodeCard } from './player/parts/NextEpisodeCard'
 import { AdjacentEpisodes } from './player/parts/AdjacentEpisodes'
+import { RelatedItems } from './player/parts/RelatedItems'
 import './PlayerPage.scss'
 
 // 防止 buildDeviceProfile 被 tree-shake 警告
@@ -44,6 +45,7 @@ export function PlayerPage() {
     toggleFavorite,
     togglePlayed,
   } = useEpisodeData({ itemId, userId })
+  const related = useRelatedItems({ item, userId })
 
   // ===== 下一集倒计时 / 自动播放 =====
   const {
@@ -140,35 +142,6 @@ export function PlayerPage() {
     void togglePlayed()
   }, [togglePlayed])
 
-  /* ========== 面包屑（集数 / 名称） ========== */
-  const breadcrumb = useMemo(() => {
-    if (itemLoading || !item) return <div className="skeleton h-5 w-48 rounded" />
-    if (item.type === 'Episode') {
-      return (
-        <nav className="flex items-center gap-2 text-sm text-jelly-muted flex-wrap">
-          {item.seriesName ? (
-            <span className="text-white truncate">{item.seriesName}</span>
-          ) : null}
-          {item.seriesName ? <span className="opacity-40">/</span> : null}
-          {item.parentIndexNumber !== null ? (
-            <span>Season {item.parentIndexNumber}</span>
-          ) : item.seasonName ? (
-            <span>{item.seasonName}</span>
-          ) : null}
-          {item.indexNumber !== null && (item.parentIndexNumber !== null || item.seasonName) ? (
-            <span className="opacity-40">/</span>
-          ) : null}
-          {item.indexNumber !== null ? (
-            <span>E{String(item.indexNumber).padStart(2, '0')}</span>
-          ) : null}
-          {item.name ? <span className="opacity-40">·</span> : null}
-          {item.name ? <span className="text-white truncate">{item.name}</span> : null}
-        </nav>
-      )
-    }
-    return <div className="text-white font-medium truncate">{item.name ?? '未命名'}</div>
-  }, [item, itemLoading])
-
   /* ====== 下一集卡片回调 ====== */
   const handlePlayNow = useCallback(() => {
     if (!nextEpisode) return
@@ -197,24 +170,6 @@ export function PlayerPage() {
 
   return (
     <div className="player-page">
-      {/* 顶部 TopBar */}
-      <div className="player-page__top">
-        <button
-          type="button"
-          aria-label="返回"
-          onClick={() => {
-            if (window.history.length > 1) void navigate(-1)
-            else void navigate('/')
-          }}
-          className="btn-ghost !p-2"
-        >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <div className="player-page__breadcrumb">{breadcrumb}</div>
-      </div>
-
       <div ref={playerContainerRef} className="player-page__stage">
         <Player
           itemId={itemId}
@@ -331,6 +286,12 @@ export function PlayerPage() {
             </p>
           )}
         </div>
+
+        <RelatedItems
+          error={related.error}
+          items={related.items}
+          loading={related.loading}
+        />
 
         {/* 相邻集 */}
         {item ? (
