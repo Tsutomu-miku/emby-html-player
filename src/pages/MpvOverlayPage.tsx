@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Controls } from '@/components/player/Controls'
 import type { PlayerControl } from '@/components/player/backends/control'
 import type { MediaSourceInfo, MediaStream, PlayMethod } from '@/api/types'
+import { useMpvOverlayVisibility } from './mpv-overlay/useMpvOverlayVisibility'
 import './MpvOverlayPage.scss'
 
 interface OverlayState {
@@ -23,7 +24,6 @@ interface OverlayState {
   hasNext: boolean
   started: boolean
   speed: number
-  visible: boolean
   error: string
 }
 
@@ -44,14 +44,14 @@ const initialState: OverlayState = {
   hasNext: false,
   started: false,
   speed: 0,
-  visible: true,
   error: '',
 }
 
 export function MpvOverlayPage() {
   const [state, setState] = useState(initialState)
   const containerRef = useRef<HTMLDivElement>(null)
-  const hideTimerRef = useRef<number | undefined>(undefined)
+  const controlsVisibility = useMpvOverlayVisibility(containerRef)
+  const setControlsVisible = controlsVisibility.setVisible
   const stateRef = useRef(initialState)
   stateRef.current = state
 
@@ -108,7 +108,8 @@ export function MpvOverlayPage() {
         setState((cur) => ({ ...cur, speed: event.bytesPerSecond ?? cur.speed }))
         break
       case 'error':
-        setState((cur) => ({ ...cur, error: event.message ?? 'MPV 播放失败', visible: true }))
+        setState((cur) => ({ ...cur, error: event.message ?? 'MPV 播放失败' }))
+        setControlsVisible(true)
         break
       case 'ready':
       case 'ended':
@@ -116,11 +117,7 @@ export function MpvOverlayPage() {
       case 'ui-action':
         break
     }
-  }), [])
-
-  useEffect(() => () => {
-    if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current)
-  }, [])
+  }), [setControlsVisible])
 
   useEffect(() => {
     void sendMpvCommand('request-overlay-metadata', [], 'metadata snapshot')
@@ -166,54 +163,15 @@ export function MpvOverlayPage() {
     },
   }), [runCommand, state])
 
-  const clearHideTimer = () => {
-    if (!hideTimerRef.current) return
-    window.clearTimeout(hideTimerRef.current)
-    hideTimerRef.current = undefined
-  }
-
-  const showControls = () => {
-    setState((cur) => cur.visible ? cur : ({ ...cur, visible: true }))
-    clearHideTimer()
-    hideTimerRef.current = window.setTimeout(() => {
-      setState((cur) => cur.visible ? ({ ...cur, visible: false }) : cur)
-      hideTimerRef.current = undefined
-    }, 2500)
-  }
-
-  const keepControlsVisible = () => {
-    setState((cur) => cur.visible ? cur : ({ ...cur, visible: true }))
-    clearHideTimer()
-  }
-
-  const hideControls = () => {
-    clearHideTimer()
-    hideTimerRef.current = window.setTimeout(() => {
-      setState((cur) => cur.visible ? ({ ...cur, visible: false }) : cur)
-      hideTimerRef.current = undefined
-    }, 120)
-  }
-
-  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (isPointerOverControls(event)) keepControlsVisible()
-    else showControls()
-  }
-
-  const handlePointerLeave = (event: PointerEvent<HTMLDivElement>) => {
-    const nextTarget = event.relatedTarget
-    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return
-    hideControls()
-  }
-
   const speedText = formatSpeed(state.speed)
 
   return (
     <div
       ref={containerRef}
       className="mpv-overlay"
-      onPointerEnter={showControls}
-      onPointerMove={handlePointerMove}
-      onPointerLeave={handlePointerLeave}
+      onPointerEnter={controlsVisibility.onPointerEnter}
+      onPointerMove={controlsVisibility.onPointerMove}
+      onPointerLeave={controlsVisibility.onPointerLeave}
       onClick={(event) => {
         if (event.target === event.currentTarget) {
           if (state.paused) void control.play()
@@ -250,7 +208,7 @@ export function MpvOverlayPage() {
         hasNext={state.hasNext}
         onPrev={() => sendOverlayAction('prev')}
         onNext={() => sendOverlayAction('next')}
-        show={state.visible}
+        show={controlsVisibility.visible}
         playMethod={state.playMethod}
         onBack={() => sendOverlayAction('back')}
       />
@@ -270,22 +228,6 @@ function sendOverlayAction(action: 'back' | 'prev' | 'next' | 'media-source', va
 function sendMpvCommand(command: string, args: unknown[], label: string) {
   return window.ehp.mpvCommand({ command, args }).catch((err: unknown) => {
     console.warn(`[PlayerOverlay] ${label} failed`, err)
-  })
-}
-
-function isPointerOverControls(event: PointerEvent<HTMLDivElement>): boolean {
-  const target = event.target
-  if (target instanceof Element && target.closest('[data-player-controls], [data-player-menu]')) {
-    return true
-  }
-  return Array.from(event.currentTarget.querySelectorAll('[data-player-controls]')).some((element) => {
-    const rect = element.getBoundingClientRect()
-    return (
-      event.clientX >= rect.left &&
-      event.clientX <= rect.right &&
-      event.clientY >= rect.top &&
-      event.clientY <= rect.bottom
-    )
   })
 }
 
