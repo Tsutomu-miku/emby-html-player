@@ -115,14 +115,20 @@ export function useKeyboardShortcuts(api: KeyboardShortcutApi, enabled = true) {
           e.preventDefault()
           if (!container) break
           if (!document.fullscreenElement) {
-            void container.requestFullscreen?.().catch(() => {})
+            void container.requestFullscreen?.().catch((err: unknown) => {
+              console.warn('[Player] shortcut enter fullscreen failed', err)
+            })
           } else {
-            void document.exitFullscreen?.().catch(() => {})
+            void document.exitFullscreen?.().catch((err: unknown) => {
+              console.warn('[Player] shortcut exit fullscreen failed', err)
+            })
           }
           break
         case 'Escape':
           if (document.fullscreenElement) {
-            void document.exitFullscreen?.().catch(() => {})
+            void document.exitFullscreen?.().catch((err: unknown) => {
+              console.warn('[Player] shortcut escape fullscreen failed', err)
+            })
           }
           break
         case 'n':

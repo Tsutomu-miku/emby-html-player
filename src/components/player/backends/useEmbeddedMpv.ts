@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react'
 import type { PlayerControl, MpvPlaybackState } from './control'
 
 interface MpvBounds {
@@ -30,7 +30,10 @@ const initialState: MpvPlaybackState = {
   muted: false,
   volume: 1,
   started: false,
+  networkBytesPerSecond: 0,
 }
+
+const START_TIMEOUT_MS = 30_000
 
 export function useEmbeddedMpv(params: UseEmbeddedMpvParams): PlayerControl | undefined {
   const {
@@ -58,6 +61,20 @@ export function useEmbeddedMpv(params: UseEmbeddedMpvParams): PlayerControl | un
     const bounds = readBounds(containerRef.current)
     let cancelled = false
     let startSeekPending = startSeconds > 0
+    let playbackStarted = false
+    let startTimeout: number | undefined = window.setTimeout(() => {
+      if (cancelled || playbackStarted) return
+      latestRef.current.onError('MPV 30 秒内没有开始播放：资源响应过慢、链接过期或服务器拒绝了媒体请求')
+    }, START_TIMEOUT_MS)
+    const clearStartTimeout = () => {
+      if (startTimeout === undefined) return
+      window.clearTimeout(startTimeout)
+      startTimeout = undefined
+    }
+    const markStarted = () => {
+      playbackStarted = true
+      clearStartTimeout()
+    }
     createdRef.current = false
     setState({ ...initialState, currentTime: startSeconds, duration: initialDurationSeconds })
 
@@ -66,6 +83,7 @@ export function useEmbeddedMpv(params: UseEmbeddedMpvParams): PlayerControl | un
       if (event.type === 'log') return
       switch (event.type) {
         case 'started':
+          markStarted()
           setState((cur) => ({ ...cur, started: true, paused: false }))
           if (startSeekPending) {
             startSeekPending = false
@@ -76,18 +94,26 @@ export function useEmbeddedMpv(params: UseEmbeddedMpvParams): PlayerControl | un
           latestRef.current.onStarted?.()
           break
         case 'time':
-          setState((cur) => ({ ...cur, currentTime: event.seconds ?? cur.currentTime }))
+          markStarted()
+          setState((cur) => ({ ...cur, started: true, currentTime: event.seconds ?? cur.currentTime }))
           break
         case 'duration':
-          setState((cur) => ({ ...cur, duration: event.seconds ?? cur.duration }))
+          markStarted()
+          setState((cur) => ({ ...cur, started: true, duration: event.seconds ?? cur.duration }))
           break
         case 'paused':
-          setState((cur) => ({ ...cur, paused: event.paused ?? cur.paused }))
+          if (event.paused === false) markStarted()
+          setState((cur) => ({ ...cur, started: event.paused === false ? true : cur.started, paused: event.paused ?? cur.paused }))
+          break
+        case 'network':
+          setState((cur) => ({ ...cur, networkBytesPerSecond: event.bytesPerSecond ?? cur.networkBytesPerSecond }))
           break
         case 'ended':
+          clearStartTimeout()
           latestRef.current.onEnded?.()
           break
         case 'error':
+          clearStartTimeout()
           latestRef.current.onError(event.message ?? 'MPV 播放失败')
           break
         case 'ready':
@@ -112,12 +138,14 @@ export function useEmbeddedMpv(params: UseEmbeddedMpvParams): PlayerControl | un
         return window.ehp.mpvCommand({ command: 'set-rate', args: [playbackRateRef.current] })
       })
       .catch((err: unknown) => {
+        clearStartTimeout()
         createdRef.current = false
         latestRef.current.onError(err instanceof Error ? err.message : String(err))
       })
 
     return () => {
       cancelled = true
+      clearStartTimeout()
       createdRef.current = false
       unsubscribe()
       void window.ehp.mpvDestroy().catch((err: unknown) => {
@@ -161,69 +189,62 @@ export function useEmbeddedMpv(params: UseEmbeddedMpvParams): PlayerControl | un
     }
   }, [containerRef, enabled])
 
-  return useMemo(() => {
-    if (!enabled) return undefined
-    return {
-      currentTime: state.currentTime,
-      duration: state.duration,
-      paused: state.paused,
-      muted: state.muted,
-      volume: state.volume,
-      started: state.started,
-      bufferedEnd: state.duration,
-      canPictureInPicture: false,
-      play: () => {
-        if (!createdRef.current) return
-        return window.ehp.mpvCommand({ command: 'set-pause', args: [false] }).catch((err: unknown) => {
-          console.warn('[Player] mpv play failed', err)
-        })
-      },
-      pause: () => {
-        if (!createdRef.current) return
-        void window.ehp.mpvCommand({ command: 'set-pause', args: [true] }).catch((err: unknown) => {
-          console.warn('[Player] mpv pause failed', err)
-        })
-      },
-      seek: (seconds: number) => {
-        if (!createdRef.current) return
-        void window.ehp.mpvCommand({ command: 'seek-absolute', args: [seconds] }).catch((err: unknown) => {
-          console.warn('[Player] mpv seek failed', err)
-        })
-      },
-      setVolume: (volume: number) => {
-        setState((cur) => ({ ...cur, volume }))
-        if (!createdRef.current) return
-        void window.ehp.mpvCommand({ command: 'set-volume', args: [Math.round(volume * 100)] }).catch((err: unknown) => {
-          console.warn('[Player] mpv volume failed', err)
-        })
-      },
-      setMuted: (muted: boolean) => {
-        setState((cur) => ({ ...cur, muted }))
-        if (!createdRef.current) return
-        void window.ehp.mpvCommand({ command: 'set-muted', args: [muted] }).catch((err: unknown) => {
-          console.warn('[Player] mpv mute failed', err)
-        })
-      },
-      setPlaybackRate: (rate: number) => {
-        if (!createdRef.current) return
-        void window.ehp.mpvCommand({ command: 'set-rate', args: [rate] }).catch((err: unknown) => {
-          console.warn('[Player] mpv rate failed', err)
-        })
-      },
-      setAudioTrack: (index: number) => {
-        if (!createdRef.current) return
-        void window.ehp.mpvCommand({ command: 'set-audio-track', args: [index] }).catch((err: unknown) => {
-          console.warn('[Player] mpv audio track failed', err)
-        })
-      },
-      setSubtitleTrack: (index: number | null) => {
-        if (!createdRef.current) return
-        void window.ehp.mpvCommand({ command: 'set-subtitle-track', args: [index ?? -1] }).catch((err: unknown) => {
-          console.warn('[Player] mpv subtitle track failed', err)
-        })
-      },
-    }
-  }, [enabled, state])
+  return useMemo(
+    () => createMpvControl(enabled, state, setState, createdRef),
+    [enabled, state],
+  )
+}
+
+type SetMpvState = Dispatch<SetStateAction<MpvPlaybackState>>
+
+function createMpvControl(
+  enabled: boolean,
+  state: MpvPlaybackState,
+  setState: SetMpvState,
+  createdRef: { current: boolean },
+): PlayerControl | undefined {
+  if (!enabled) return undefined
+  return {
+    currentTime: state.currentTime,
+    duration: state.duration,
+    paused: state.paused,
+    muted: state.muted,
+    volume: state.volume,
+    started: state.started,
+    networkBytesPerSecond: state.networkBytesPerSecond,
+    bufferedEnd: state.duration,
+    canPictureInPicture: false,
+    play: () => sendMpvCommand(createdRef, 'set-pause', [false], 'play'),
+    pause: () => { void sendMpvCommand(createdRef, 'set-pause', [true], 'pause') },
+    seek: (seconds: number) => { void sendMpvCommand(createdRef, 'seek-absolute', [seconds], 'seek') },
+    setVolume: (volume: number) => {
+      setState((cur) => ({ ...cur, volume }))
+      void sendMpvCommand(createdRef, 'set-volume', [Math.round(volume * 100)], 'volume')
+    },
+    setMuted: (muted: boolean) => {
+      setState((cur) => ({ ...cur, muted }))
+      void sendMpvCommand(createdRef, 'set-muted', [muted], 'mute')
+    },
+    setPlaybackRate: (rate: number) => { void sendMpvCommand(createdRef, 'set-rate', [rate], 'rate') },
+    setAudioTrack: (index: number) => {
+      void sendMpvCommand(createdRef, 'set-audio-track', [index], 'audio track')
+    },
+    setSubtitleTrack: (index: number | null) => {
+      void sendMpvCommand(createdRef, 'set-subtitle-track', [index ?? -1], 'subtitle track')
+    },
+  }
+}
+
+function sendMpvCommand(
+  createdRef: { current: boolean },
+  command: string,
+  args: unknown[],
+  label: string,
+) {
+  if (!createdRef.current) return undefined
+  return window.ehp.mpvCommand({ command, args }).catch((err: unknown) => {
+    console.warn(`[Player] mpv ${label} failed`, err)
+  })
 }
 
 function readBounds(element: HTMLElement | null): MpvBounds {

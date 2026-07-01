@@ -49,7 +49,15 @@ export function useControlsVisibility(
       }
       if (t.tagName === 'VIDEO') {
         const v = videoRef.current
-        if (v) { if (v.paused) void v.play().catch(() => {}); else v.pause() }
+        if (v) {
+          if (v.paused) {
+            void v.play().catch((err: unknown) => {
+              console.warn('[Player] click-to-play failed', err)
+            })
+          } else {
+            v.pause()
+          }
+        }
       }
     }
     const onTouchEnd = (e: TouchEvent) => {

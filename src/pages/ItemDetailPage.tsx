@@ -199,8 +199,6 @@ export function ItemDetailPage() {
         />
       )}
 
-      {item.people && item.people.length > 0 && <CastList people={item.people} />}
-
       <SeasonEpisodePanel
         type={type}
         item={item}
@@ -212,6 +210,8 @@ export function ItemDetailPage() {
         episodesError={ep.episodesError}
         siblingEpisodes={ep.siblings}
       />
+
+      {item.people && item.people.length > 0 && <CastList people={item.people} />}
 
       {(type === 'BoxSet' ||
         type === 'Folder' ||

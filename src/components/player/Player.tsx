@@ -395,7 +395,12 @@ export function Player(props: PlayerProps) {
       />
       {children}
       {toast ? <div className="absolute left-1/2 top-12 -translate-x-1/2 px-4 py-2 rounded-md bg-black/80 text-white text-sm shadow-lg z-30 pointer-events-none">{toast}</div> : null}
-      {showLoadingOverlay && <OverlayLoading item={itemInfo ?? loadingItem} />}
+      {showLoadingOverlay && (
+        <OverlayLoading
+          item={itemInfo ?? loadingItem}
+          networkBytesPerSecond={mpvControl?.networkBytesPerSecond}
+        />
+      )}
       {loadState === 'error' && error ? (
         <OverlayError
           message={error.message}

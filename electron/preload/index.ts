@@ -20,9 +20,10 @@ export interface MpvBounds {
 }
 
 export interface MpvEvent {
-  type: 'ready' | 'started' | 'time' | 'duration' | 'paused' | 'ended' | 'error'
+  type: 'ready' | 'started' | 'time' | 'duration' | 'paused' | 'network' | 'ended' | 'error'
   seconds?: number
   paused?: boolean
+  bytesPerSecond?: number
   message?: string
 }
 

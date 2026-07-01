@@ -7,6 +7,7 @@ export interface PlayerControl {
   bufferedEnd: number
   canPictureInPicture: boolean
   started?: boolean
+  networkBytesPerSecond?: number
   play: () => void | Promise<void>
   pause: () => void
   seek: (seconds: number) => void
@@ -25,4 +26,5 @@ export interface MpvPlaybackState {
   muted: boolean
   volume: number
   started: boolean
+  networkBytesPerSecond: number
 }

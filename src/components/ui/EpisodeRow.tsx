@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import type { BaseItemDto } from '@/api/types'
-import { thumbUrl, posterUrl } from '@/api/images'
+import { backdropUrl, thumbUrl, posterUrl } from '@/api/images'
 import { ticksToSeconds, formatDurationShort, formatDate } from '@/utils/time'
 import { cx } from '@/utils'
 import './EpisodeRow.scss'
@@ -17,7 +17,8 @@ export interface EpisodeRowProps {
 export function EpisodeRow({ episode, showSeasonLabel = false }: EpisodeRowProps) {
   const navigate = useNavigate()
   const thumbSrc =
-    thumbUrl(episode, { quality: 60, placeholderOnMissing: true }) ||
+    thumbUrl(episode, { quality: 60 }) ||
+    backdropUrl(episode, { quality: 60 }) ||
     posterUrl(episode, { quality: 60, placeholderOnMissing: true })
 
   const position = episode.userData?.playbackPositionTicks ?? 0

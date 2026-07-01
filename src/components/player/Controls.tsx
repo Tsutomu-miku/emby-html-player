@@ -153,8 +153,15 @@ export function Controls(props: ControlsProps) {
   }
   const toggleFullscreen = () => {
     if (!container) return
-    if (!document.fullscreenElement) void container.requestFullscreen?.().catch(() => {})
-    else void document.exitFullscreen?.().catch(() => {})
+    if (!document.fullscreenElement) {
+      void container.requestFullscreen?.().catch((err: unknown) => {
+        console.warn('[Player] enter fullscreen failed', err)
+      })
+    } else {
+      void document.exitFullscreen?.().catch((err: unknown) => {
+        console.warn('[Player] exit fullscreen failed', err)
+      })
+    }
   }
   const togglePip = async () => {
     if (control?.togglePictureInPicture) {

@@ -10,9 +10,14 @@ interface OverlayMediaItem {
 }
 
 // Player 的覆盖层组件（Loading / Error）
-export function OverlayLoading({ item }: { item?: OverlayMediaItem | null }) {
+export function OverlayLoading(props: {
+  item?: OverlayMediaItem | null
+  networkBytesPerSecond?: number
+}) {
+  const { item, networkBytesPerSecond = 0 } = props
   const backdropSrc = item ? backdropUrl(item, { quality: 70 }) : ''
   const posterSrc = item ? posterUrl(item, { quality: 70 }) : ''
+  const speedText = formatBytesPerSecond(networkBytesPerSecond)
 
   return (
     <div className="absolute inset-0 z-40 overflow-hidden bg-[#05080c]">
@@ -46,23 +51,13 @@ export function OverlayLoading({ item }: { item?: OverlayMediaItem | null }) {
               className="h-8 w-8 rounded-full border-2 border-white/20 border-t-jelly-accent animate-spin"
               aria-label="加载中"
             />
-            <span>正在建立播放会话并初始化 MPV 内嵌渲染…</span>
+            <span>
+              {speedText
+                ? `媒体数据接收中：${speedText}`
+                : '正在建立播放会话并等待媒体数据…'}
+            </span>
           </div>
         </div>
-      </div>
-    </div>
-  )
-}
-
-export function OverlayInlineLoading() {
-  return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/35 backdrop-blur-[1px]">
-      <div className="flex flex-col items-center gap-4 text-white/80">
-        <div
-          className="w-10 h-10 rounded-full border-2 border-white/20 border-t-jelly-accent animate-spin"
-          aria-label="加载中"
-        />
-        <div className="text-sm">准备播放…</div>
       </div>
     </div>
   )
@@ -103,4 +98,11 @@ export function OverlayError(props: {
       </div>
     </div>
   )
+}
+
+function formatBytesPerSecond(bytesPerSecond: number) {
+  if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) return ''
+  if (bytesPerSecond >= 1024 * 1024) return `${(bytesPerSecond / 1024 / 1024).toFixed(1)} MB/s`
+  if (bytesPerSecond >= 1024) return `${Math.round(bytesPerSecond / 1024)} KB/s`
+  return `${Math.round(bytesPerSecond)} B/s`
 }

@@ -28,6 +28,7 @@ export type MpvEvent =
   | { type: 'time'; seconds: number }
   | { type: 'duration'; seconds: number }
   | { type: 'paused'; paused: boolean }
+  | { type: 'network'; bytesPerSecond: number }
   | { type: 'ended' }
   | { type: 'error'; message: string }
   | { type: 'log'; level: string; prefix: string; message: string }

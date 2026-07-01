@@ -26,9 +26,10 @@ interface MpvBounds {
 }
 
 interface MpvEvent {
-  type: 'ready' | 'started' | 'time' | 'duration' | 'paused' | 'ended' | 'error' | 'log'
+  type: 'ready' | 'started' | 'time' | 'duration' | 'paused' | 'network' | 'ended' | 'error' | 'log'
   seconds?: number
   paused?: boolean
+  bytesPerSecond?: number
   message?: string
   level?: string
   prefix?: string

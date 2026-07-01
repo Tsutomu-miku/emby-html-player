@@ -28,16 +28,12 @@
   gap: 12px;
 
   > .relative {
-    aspect-ratio: 16 / 5;
+    aspect-ratio: 21 / 9;
     border: 1px solid rgba(255, 255, 255, 0.13);
     border-radius: 8px;
     box-shadow:
       0 28px 90px rgba(0, 0, 0, 0.46),
       0 0 0 1px rgba(0, 0, 0, 0.34);
-  }
-
-  [data-player-controls].top-0 {
-    display: none;
   }
 }
 

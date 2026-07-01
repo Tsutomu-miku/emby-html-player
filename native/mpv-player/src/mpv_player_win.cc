@@ -367,6 +367,7 @@ static napi_value Create(napi_env env, napi_callback_info info) {
   g_mpv.mpv_observe_property(player->mpv, 1, "time-pos", MPV_FORMAT_DOUBLE);
   g_mpv.mpv_observe_property(player->mpv, 2, "duration", MPV_FORMAT_DOUBLE);
   g_mpv.mpv_observe_property(player->mpv, 3, "pause", MPV_FORMAT_FLAG);
+  g_mpv.mpv_observe_property(player->mpv, 4, "cache-speed", MPV_FORMAT_DOUBLE);
 
   char pointer[32];
   snprintf(pointer, sizeof(pointer), "%llu", (unsigned long long)(uintptr_t)player);
@@ -567,6 +568,12 @@ static napi_value PollEvent(napi_env env, napi_callback_info info) {
         napi_value paused;
         napi_get_boolean(env, *(int*)prop->data != 0, &paused);
         napi_set_named_property(env, result, "paused", paused);
+      } else if (strcmp(prop->name, "cache-speed") == 0) {
+        napi_create_string_utf8(env, "network", NAPI_AUTO_LENGTH, &type);
+        napi_set_named_property(env, result, "type", type);
+        napi_value bytesPerSecond;
+        napi_create_double(env, *(double*)prop->data, &bytesPerSecond);
+        napi_set_named_property(env, result, "bytesPerSecond", bytesPerSecond);
       } else {
         napi_get_null(env, &result);
       }
