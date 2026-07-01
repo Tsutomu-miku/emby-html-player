@@ -25,7 +25,10 @@ export function useEpisodeData(
     [userId, itemId, type],
   )
 
-  const seasons = seasonsState.data?.items || []
+  const seasons = useMemo(() => {
+    if (!seasonsState.data) return []
+    return seasonsState.data.items
+  }, [seasonsState.data])
 
   // 默认选中季：有播放进度的季 > 第一季
   const defaultSeasonId = useMemo(() => {
