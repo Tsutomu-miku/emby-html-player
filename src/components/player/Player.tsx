@@ -31,6 +31,7 @@ export interface PlayerProps {
   /** null = 关闭字幕；undefined = 选默认字幕 */
   defaultSubtitleIndex?: number | null
   defaultMediaSourceId?: string
+  loadingItem?: BaseItemDto | null
   className?: string
   onEnded?: () => void
   onBeforeEnded?: (secondsLeft: number) => void
@@ -42,7 +43,7 @@ export interface PlayerProps {
 export function Player(props: PlayerProps) {
   const {
     itemId, startPositionTicks, seriesId, defaultAudioIndex,
-    defaultSubtitleIndex, defaultMediaSourceId, className,
+    defaultSubtitleIndex, defaultMediaSourceId, loadingItem, className,
     onEnded, onBeforeEnded, beforeEndedThresholdSeconds = 40, children,
   } = props
 
@@ -368,6 +369,9 @@ export function Player(props: PlayerProps) {
     if (v && v.playbackRate !== playbackRate) setPlaybackRate(v.playbackRate)
   }, [playbackRate])
   const hasOtherSource = playbackInfoMediaSources.length > 1
+  const showLoadingOverlay =
+    loadState === 'loading' ||
+    (loadState === 'ready' && playbackBackend === 'mpv' && mpvControl?.started !== true)
   return (
     <div ref={containerRef} className={cx('relative bg-black rounded-xl overflow-hidden aspect-video w-full shadow-2xl group ring-1 ring-white/5', className)}>
       <video
@@ -391,7 +395,7 @@ export function Player(props: PlayerProps) {
       />
       {children}
       {toast ? <div className="absolute left-1/2 top-12 -translate-x-1/2 px-4 py-2 rounded-md bg-black/80 text-white text-sm shadow-lg z-30 pointer-events-none">{toast}</div> : null}
-      {loadState === 'loading' && <OverlayLoading />}
+      {showLoadingOverlay && <OverlayLoading item={itemInfo ?? loadingItem} />}
       {loadState === 'error' && error ? (
         <OverlayError
           message={error.message}

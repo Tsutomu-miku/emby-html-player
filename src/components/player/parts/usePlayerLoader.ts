@@ -46,7 +46,17 @@ interface UsePlayerLoaderParams {
 
 type ItemInfo = Pick<
   BaseItemDto,
-  'id' | 'name' | 'type' | 'indexNumber' | 'parentIndexNumber' | 'seriesName' | 'seasonName' | 'imageTags'
+  | 'id'
+  | 'name'
+  | 'type'
+  | 'indexNumber'
+  | 'parentIndexNumber'
+  | 'seriesName'
+  | 'seasonName'
+  | 'imageTags'
+  | 'backdropImageTags'
+  | 'parentBackdropImageTags'
+  | 'parentBackdropItemId'
 >
 
 export function usePlayerLoader(params: UsePlayerLoaderParams) {
@@ -206,23 +216,22 @@ async function resolveStartTicks(params: {
   let startTicks = params.resumeSeconds !== undefined
     ? secondsToTicks(params.resumeSeconds)
     : params.startPositionTicks ?? 0
+  const item = await getItem(params.userId, params.itemId)
+  params.setItemInfo({
+    id: item.id,
+    name: item.name,
+    type: item.type,
+    indexNumber: item.indexNumber,
+    parentIndexNumber: item.parentIndexNumber,
+    seriesName: item.seriesName,
+    seasonName: item.seasonName,
+    imageTags: item.imageTags,
+    backdropImageTags: item.backdropImageTags,
+    parentBackdropImageTags: item.parentBackdropImageTags,
+    parentBackdropItemId: item.parentBackdropItemId,
+  })
   if (startTicks === 0) {
-    try {
-      const item = await getItem(params.userId, params.itemId)
-      startTicks = item.userData?.playbackPositionTicks ?? 0
-      params.setItemInfo({
-        id: item.id,
-        name: item.name,
-        type: item.type,
-        indexNumber: item.indexNumber,
-        parentIndexNumber: item.parentIndexNumber,
-        seriesName: item.seriesName,
-        seasonName: item.seasonName,
-        imageTags: item.imageTags,
-      })
-    } catch (err) {
-      console.warn('[Player] get item resume position failed', err)
-    }
+    startTicks = item.userData?.playbackPositionTicks ?? 0
   }
   if (startTicks > 0 && params.resumeRewindSeconds > 0) {
     return Math.max(0, startTicks - secondsToTicks(params.resumeRewindSeconds))

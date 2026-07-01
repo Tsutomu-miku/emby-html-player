@@ -173,6 +173,7 @@ export function PlayerPage() {
       <div ref={playerContainerRef} className="player-page__stage">
         <Player
           itemId={itemId}
+          loadingItem={item}
           startPositionTicks={startPositionTicks}
           seriesId={item?.seriesId}
           beforeEndedThresholdSeconds={nextEpisodeCountdownThreshold}

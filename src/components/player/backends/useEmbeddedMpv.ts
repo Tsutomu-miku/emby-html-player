@@ -42,7 +42,6 @@ export function useEmbeddedMpv(params: UseEmbeddedMpvParams): PlayerControl | un
     startSeconds,
     initialDurationSeconds,
     playbackRate,
-    controlsVisible,
     onEnded,
     onError,
     onStarted,
@@ -56,7 +55,7 @@ export function useEmbeddedMpv(params: UseEmbeddedMpvParams): PlayerControl | un
 
   useEffect(() => {
     if (!enabled || !url) return
-    const bounds = readBounds(containerRef.current, true)
+    const bounds = readBounds(containerRef.current)
     let cancelled = false
     let startSeekPending = startSeconds > 0
     createdRef.current = false
@@ -100,6 +99,12 @@ export function useEmbeddedMpv(params: UseEmbeddedMpvParams): PlayerControl | un
       .then(() => {
         if (cancelled) return undefined
         createdRef.current = true
+        void window.ehp.mpvCommand({
+          command: 'set-bounds',
+          args: [readBounds(containerRef.current)],
+        }).catch((err: unknown) => {
+          console.warn('[Player] mpv initial bounds failed', err)
+        })
         return window.ehp.mpvLoad({ url, title, startSeconds })
       })
       .then(() => {
@@ -125,21 +130,36 @@ export function useEmbeddedMpv(params: UseEmbeddedMpvParams): PlayerControl | un
     if (!enabled) return
     const resize = () => {
       if (!createdRef.current) return
-      const bounds = readBounds(containerRef.current, controlsVisible)
+      const bounds = readBounds(containerRef.current)
       void window.ehp.mpvCommand({ command: 'set-bounds', args: [bounds] }).catch((err: unknown) => {
         console.warn('[Player] mpv resize failed', err)
+      })
+    }
+    let frame = 0
+    const scheduleResize = () => {
+      if (frame) return
+      frame = window.requestAnimationFrame(() => {
+        frame = 0
+        resize()
       })
     }
     const observer = new ResizeObserver(resize)
     const element = containerRef.current
     if (element) observer.observe(element)
-    window.addEventListener('resize', resize)
+    window.addEventListener('resize', scheduleResize)
+    window.addEventListener('scroll', scheduleResize, true)
+    window.visualViewport?.addEventListener('resize', scheduleResize)
+    window.visualViewport?.addEventListener('scroll', scheduleResize)
     resize()
     return () => {
+      if (frame) window.cancelAnimationFrame(frame)
       observer.disconnect()
-      window.removeEventListener('resize', resize)
+      window.removeEventListener('resize', scheduleResize)
+      window.removeEventListener('scroll', scheduleResize, true)
+      window.visualViewport?.removeEventListener('resize', scheduleResize)
+      window.visualViewport?.removeEventListener('scroll', scheduleResize)
     }
-  }, [containerRef, controlsVisible, enabled])
+  }, [containerRef, enabled])
 
   return useMemo(() => {
     if (!enabled) return undefined
@@ -206,16 +226,13 @@ export function useEmbeddedMpv(params: UseEmbeddedMpvParams): PlayerControl | un
   }, [enabled, state])
 }
 
-function readBounds(element: HTMLElement | null, controlsVisible: boolean): MpvBounds {
+function readBounds(element: HTMLElement | null): MpvBounds {
   if (!element) return { x: 0, y: 0, width: 1, height: 1 }
   const rect = element.getBoundingClientRect()
-  const topInset = controlsVisible ? 56 : 0
-  const bottomInset = controlsVisible ? 118 : 0
-  const height = Math.max(1, Math.round(rect.height) - topInset - bottomInset)
   return {
     x: Math.round(rect.left),
-    y: Math.round(rect.top) + topInset,
+    y: Math.round(rect.top),
     width: Math.max(1, Math.round(rect.width)),
-    height,
+    height: Math.max(1, Math.round(rect.height)),
   }
 }
