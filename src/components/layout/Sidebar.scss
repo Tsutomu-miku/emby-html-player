@@ -33,11 +33,19 @@
     width: 28px;
     height: 28px;
     place-items: center;
+    transform: rotate(45deg);
     border-radius: 8px;
     background: linear-gradient(135deg, var(--accent-strong), var(--accent));
     color: #fff;
-    font-size: 14px;
     box-shadow: 0 10px 28px rgba(53, 184, 74, 0.28);
+  }
+
+  &__brand-mark-inner {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
   }
 
   &__brand-text,

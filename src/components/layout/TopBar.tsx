@@ -118,7 +118,7 @@ export function TopBar() {
           <nav className="topbar__crumbs" aria-label="面包屑">
             {crumbs.map((c, i) => (
               <span key={i} className="topbar__crumb">
-                {i > 0 && <span className="topbar__crumb-separator">/</span>}
+                {i > 0 && <span className="topbar__crumb-separator" aria-hidden="true">›</span>}
                 {c.to ? (
                   <a
                     href={c.to}
@@ -154,6 +154,32 @@ export function TopBar() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="19" y1="12" x2="5" y2="12" />
               <polyline points="12 19 5 12 12 5" />
+            </svg>
+          </IconButton>
+
+          <IconButton
+            type="button"
+            onClick={() => { void navigate(1) }}
+            aria-label="前进"
+            className="topbar__action"
+            title="前进到下一页"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          </IconButton>
+
+          <IconButton
+            type="button"
+            onClick={() => { void navigate(0) }}
+            aria-label="刷新"
+            className="topbar__action"
+            title="刷新当前页"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
+              <polyline points="21 3 21 8 16 8" />
             </svg>
           </IconButton>
 

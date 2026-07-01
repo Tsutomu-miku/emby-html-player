@@ -52,10 +52,10 @@ export function Sidebar() {
   return (
     <aside className="sidebar">
       <Link to="/" className="sidebar__brand">
-        <span className="sidebar__brand-mark">
-          E
+        <span className="sidebar__brand-mark" aria-hidden="true">
+          <span className="sidebar__brand-mark-inner" />
         </span>
-        <span className="sidebar__brand-text">Emby Desktop</span>
+        <span className="sidebar__brand-text">Emby H5</span>
       </Link>
 
       <SidebarNavLink to="/" active={location.pathname === '/'} exactMatch>
