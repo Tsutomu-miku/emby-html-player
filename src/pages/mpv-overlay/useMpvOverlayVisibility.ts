@@ -40,10 +40,10 @@ export function useMpvOverlayVisibility(
     clearHideTimer(hideTimerRef)
   }
 
-  const scheduleHide = () => {
+  const scheduleHide = (options?: { checkPointer: boolean }) => {
     clearHideTimer(hideTimerRef)
     hideTimerRef.current = window.setTimeout(() => {
-      if (isPointOverControls(containerRef.current, pointerRef.current)) {
+      if (options?.checkPointer && isPointOverControls(containerRef.current, pointerRef.current)) {
         keepVisible()
         return
       }
@@ -56,7 +56,7 @@ export function useMpvOverlayVisibility(
   const showThenScheduleHide = () => {
     setVisible(true)
     setInteractive(false)
-    scheduleHide()
+    scheduleHide({ checkPointer: true })
   }
 
   return {
@@ -70,14 +70,10 @@ export function useMpvOverlayVisibility(
       else showThenScheduleHide()
     },
     onPointerLeave: (event) => {
-      pointerRef.current = { x: event.clientX, y: event.clientY }
-      if (isPointerOverControls(event)) {
-        keepVisible()
-        return
-      }
       const nextTarget = event.relatedTarget
       if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return
-      scheduleHide()
+      pointerRef.current = null
+      scheduleHide({ checkPointer: false })
     },
   }
 }
