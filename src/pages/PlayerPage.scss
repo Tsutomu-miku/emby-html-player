@@ -1,6 +1,6 @@
 .player-page {
   display: grid;
-  gap: 18px;
+  gap: 16px;
   padding-bottom: 48px;
 }
 
@@ -19,26 +19,31 @@
 
 .player-page__stage,
 .player-page__details {
-  width: min(100%, 1400px);
+  width: min(100%, 1180px);
   margin: 0 auto;
 }
 
 .player-page__stage {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 
   > .relative {
+    aspect-ratio: 21 / 9;
     border: 1px solid rgba(255, 255, 255, 0.13);
     border-radius: 8px;
     box-shadow:
       0 28px 90px rgba(0, 0, 0, 0.46),
       0 0 0 1px rgba(0, 0, 0, 0.34);
   }
+
+  [data-player-controls].top-0 {
+    display: none;
+  }
 }
 
 .player-page__details {
   display: grid;
-  gap: 20px;
+  gap: 18px;
   padding: 0 4px;
 }
 
@@ -55,7 +60,7 @@
     overflow: hidden;
     margin: 0;
     color: #fff;
-    font-size: clamp(24px, 3vw, 34px);
+    font-size: clamp(24px, 2.6vw, 34px);
     font-weight: 800;
     letter-spacing: 0;
     text-overflow: ellipsis;
@@ -84,13 +89,20 @@
 }
 
 .player-page__overview {
-  max-width: 920px;
+  max-width: 850px;
+
+  h2 {
+    margin: 0 0 8px;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 800;
+  }
 
   p {
     margin: 0;
     color: rgba(243, 246, 247, 0.86);
     font-size: 14px;
-    line-height: 1.75;
+    line-height: 1.65;
     white-space: pre-wrap;
   }
 }
@@ -135,26 +147,26 @@
 
 .next-episode-card {
   display: grid;
-  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr) auto;
-  gap: 16px;
+  grid-template-columns: 220px minmax(0, 1fr) auto;
+  gap: 18px;
   align-items: center;
   overflow: hidden;
   border: 1px solid var(--glass-border);
   border-radius: 8px;
-  background: rgba(20, 30, 39, 0.82);
+  background: linear-gradient(135deg, rgba(26, 33, 40, 0.86), rgba(20, 30, 39, 0.7));
   box-shadow: 0 18px 54px rgba(0, 0, 0, 0.34);
   backdrop-filter: blur(18px) saturate(1.2);
 
   &__image {
     position: relative;
-    min-height: 116px;
+    min-height: 104px;
     overflow: hidden;
     background: var(--app-bg-soft);
 
     img {
       width: 100%;
       height: 100%;
-      min-height: 116px;
+      min-height: 104px;
       object-fit: cover;
     }
 
@@ -181,7 +193,7 @@
 
   &__body {
     min-width: 0;
-    padding: 16px 0;
+    padding: 14px 0;
 
     h2,
     p {
@@ -224,7 +236,7 @@
 
 .player-episodes {
   display: grid;
-  gap: 12px;
+  gap: 11px;
 
   &__header h2 {
     margin: 0;
@@ -243,7 +255,7 @@
 }
 
 .player-episode-card {
-  flex: 0 0 260px;
+  flex: 0 0 220px;
   overflow: hidden;
   border: 1px solid var(--glass-border);
   border-radius: 8px;
@@ -300,7 +312,7 @@
   &__body {
     display: grid;
     gap: 5px;
-    padding: 12px;
+    padding: 10px 2px 2px;
 
     h3,
     p {
@@ -310,7 +322,7 @@
 
     h3 {
       color: #fff;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 800;
       text-overflow: ellipsis;
       white-space: nowrap;

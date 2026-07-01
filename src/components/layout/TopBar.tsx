@@ -32,15 +32,20 @@ export function TopBar() {
       .then((r) => {
         if (!cancelled) setViews(r.items || [])
       })
-      .catch(() => {})
+      .catch((error: unknown) => {
+        console.error('[TopBar] failed to load user views:', error)
+      })
     return () => {
       cancelled = true
     }
   }, [userId])
 
-  // 若当前路径是 /item/:itemId，懒加载 item 的名称用于面包屑
+  // 若当前路径是 /item/:itemId 或 /player/:itemId，懒加载 item 的名称用于面包屑
   useEffect(() => {
-    if (!params.itemId || !userId) {
+    const needsItemName =
+      location.pathname.startsWith('/item/') ||
+      location.pathname.startsWith('/player/')
+    if (!params.itemId || !userId || !needsItemName) {
       setItemName('')
       return
     }
@@ -49,11 +54,13 @@ export function TopBar() {
       .then((it: BaseItemDto) => {
         if (!cancelled) setItemName(it.name || '')
       })
-      .catch(() => {})
+      .catch((error: unknown) => {
+        console.error('[TopBar] failed to load breadcrumb item:', error)
+      })
     return () => {
       cancelled = true
     }
-  }, [params.itemId, userId])
+  }, [location.pathname, params.itemId, userId])
 
   // 点击外部关闭用户菜单
   useEffect(() => {
@@ -80,7 +87,8 @@ export function TopBar() {
         result.push({ label: '详情' })
       }
     } else if (location.pathname.startsWith('/player/')) {
-      result.push({ label: '播放' })
+      result.push({ label: '播放中' })
+      result.push({ label: itemName || '当前媒体' })
     }
     return result
   }, [location.pathname, views, itemName])

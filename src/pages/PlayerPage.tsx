@@ -272,18 +272,21 @@ export function PlayerPage() {
               <div className="skeleton h-4 w-3/4 rounded" />
             </div>
           ) : (
-            <p>
-              {shortOverview || '暂无简介'}
-              {item && (item.overview?.length ?? 0) > 220 ? (
-                <button
-                  type="button"
-                  onClick={() => setShowExpand((v) => !v)}
-                  className="player-page__overview-toggle"
-                >
-                  {showExpand ? '收起' : '展开'}
-                </button>
-              ) : null}
-            </p>
+            <>
+              <h2>{item?.type === 'Episode' ? '剧集简介' : '简介'}</h2>
+              <p>
+                {shortOverview || '暂无简介'}
+                {item && (item.overview?.length ?? 0) > 220 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowExpand((v) => !v)}
+                    className="player-page__overview-toggle"
+                  >
+                    {showExpand ? '收起' : '展开'}
+                  </button>
+                ) : null}
+              </p>
+            </>
           )}
         </div>
 
