@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { Controls } from '@/components/player/Controls'
 import type { PlayerControl } from '@/components/player/backends/control'
 import type { MediaSourceInfo, MediaStream, PlayMethod } from '@/api/types'
@@ -166,19 +166,43 @@ export function MpvOverlayPage() {
     },
   }), [runCommand, state])
 
+  const clearHideTimer = () => {
+    if (!hideTimerRef.current) return
+    window.clearTimeout(hideTimerRef.current)
+    hideTimerRef.current = undefined
+  }
+
   const showControls = () => {
     setState((cur) => cur.visible ? cur : ({ ...cur, visible: true }))
-    if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current)
+    clearHideTimer()
     hideTimerRef.current = window.setTimeout(() => {
       setState((cur) => cur.visible ? ({ ...cur, visible: false }) : cur)
+      hideTimerRef.current = undefined
     }, 2500)
   }
 
+  const keepControlsVisible = () => {
+    setState((cur) => cur.visible ? cur : ({ ...cur, visible: true }))
+    clearHideTimer()
+  }
+
   const hideControls = () => {
-    if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current)
+    clearHideTimer()
     hideTimerRef.current = window.setTimeout(() => {
       setState((cur) => cur.visible ? ({ ...cur, visible: false }) : cur)
+      hideTimerRef.current = undefined
     }, 120)
+  }
+
+  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (isPointerOverControls(event)) keepControlsVisible()
+    else showControls()
+  }
+
+  const handlePointerLeave = (event: PointerEvent<HTMLDivElement>) => {
+    const nextTarget = event.relatedTarget
+    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return
+    hideControls()
   }
 
   const speedText = formatSpeed(state.speed)
@@ -187,8 +211,9 @@ export function MpvOverlayPage() {
     <div
       ref={containerRef}
       className="mpv-overlay"
-      onMouseMove={showControls}
-      onMouseLeave={hideControls}
+      onPointerEnter={showControls}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
       onClick={(event) => {
         if (event.target === event.currentTarget) {
           if (state.paused) void control.play()
@@ -245,6 +270,22 @@ function sendOverlayAction(action: 'back' | 'prev' | 'next' | 'media-source', va
 function sendMpvCommand(command: string, args: unknown[], label: string) {
   return window.ehp.mpvCommand({ command, args }).catch((err: unknown) => {
     console.warn(`[PlayerOverlay] ${label} failed`, err)
+  })
+}
+
+function isPointerOverControls(event: PointerEvent<HTMLDivElement>): boolean {
+  const target = event.target
+  if (target instanceof Element && target.closest('[data-player-controls], [data-player-menu]')) {
+    return true
+  }
+  return Array.from(event.currentTarget.querySelectorAll('[data-player-controls]')).some((element) => {
+    const rect = element.getBoundingClientRect()
+    return (
+      event.clientX >= rect.left &&
+      event.clientX <= rect.right &&
+      event.clientY >= rect.top &&
+      event.clientY <= rect.bottom
+    )
   })
 }
 
