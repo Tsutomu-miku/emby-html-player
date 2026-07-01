@@ -103,6 +103,10 @@ class EmbeddedMpvService {
       this.sendEvent(readOverlayActionArg(payload))
       return
     }
+    if (payload.command === 'set-overlay-interactive') {
+      this.setOverlayInteractive(readBooleanArg(payload))
+      return
+    }
     await this.backend.command(payload)
     if (payload.command === 'set-bounds') {
       const window = this.requireWindow()
@@ -146,6 +150,8 @@ class EmbeddedMpvService {
       minimizable: false,
       maximizable: false,
       fullscreenable: false,
+      focusable: false,
+      acceptFirstMouse: true,
       skipTaskbar: true,
       webPreferences: {
         preload: path.join(__dir, '../preload/index.mjs'),
@@ -156,6 +162,7 @@ class EmbeddedMpvService {
     })
     overlay.setMenuBarVisibility(false)
     this.overlayWindow = overlay
+    this.setOverlayInteractive(false)
     this.moveOverlay(parent, bounds)
     if (DEV_SERVER_URL) {
       const url = new URL(DEV_SERVER_URL)
@@ -184,6 +191,11 @@ class EmbeddedMpvService {
     const overlay = this.overlayWindow
     this.overlayWindow = null
     if (overlay && !overlay.isDestroyed()) overlay.close()
+  }
+
+  private setOverlayInteractive(interactive: boolean): void {
+    if (!this.overlayWindow || this.overlayWindow.isDestroyed()) return
+    this.overlayWindow.setIgnoreMouseEvents(!interactive, { forward: true })
   }
 
   private sendOverlaySnapshot(): void {
@@ -248,6 +260,12 @@ function redactMediaUrl(url: string): string {
 function nativeHandleToPointerString(handle: Buffer): string {
   if (handle.length < 8) throw new Error(`Electron native handle 长度异常：${handle.length}`)
   return handle.readBigUInt64LE(0).toString(10)
+}
+
+function readBooleanArg(input: MpvCommandRequest): boolean {
+  const value = input.args?.[0]
+  if (typeof value !== 'boolean') throw new Error(`${input.command} 参数类型无效`)
+  return value
 }
 
 function createInitialPlaybackSnapshot(): PlaybackSnapshot {

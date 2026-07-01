@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent, type RefOb
 interface UseMpvOverlayVisibilityResult {
   visible: boolean
   setVisible: (visible: boolean) => void
+  interactive: boolean
   onPointerEnter: () => void
   onPointerMove: (event: PointerEvent<HTMLDivElement>) => void
   onPointerLeave: (event: PointerEvent<HTMLDivElement>) => void
@@ -12,17 +13,30 @@ export function useMpvOverlayVisibility(
   containerRef: RefObject<HTMLElement | null>,
 ): UseMpvOverlayVisibilityResult {
   const [visible, setVisibleState] = useState(true)
+  const [interactive, setInteractiveState] = useState(false)
   const hideTimerRef = useRef<number | undefined>(undefined)
   const pointerRef = useRef<{ x: number; y: number } | null>(null)
 
   useEffect(() => () => clearHideTimer(hideTimerRef), [])
+  useEffect(() => {
+    void window.ehp.mpvCommand({
+      command: 'set-overlay-interactive',
+      args: [interactive],
+    }).catch((err: unknown) => {
+      console.warn('[PlayerOverlay] interaction mode failed', err)
+    })
+  }, [interactive])
 
   const setVisible = useCallback((nextVisible: boolean) => {
     setVisibleState((cur) => cur === nextVisible ? cur : nextVisible)
   }, [])
+  const setInteractive = useCallback((nextInteractive: boolean) => {
+    setInteractiveState((cur) => cur === nextInteractive ? cur : nextInteractive)
+  }, [])
 
   const keepVisible = () => {
     setVisible(true)
+    setInteractive(true)
     clearHideTimer(hideTimerRef)
   }
 
@@ -34,18 +48,21 @@ export function useMpvOverlayVisibility(
         return
       }
       setVisible(false)
+      setInteractive(false)
       hideTimerRef.current = undefined
     }, 2500)
   }
 
   const showThenScheduleHide = () => {
     setVisible(true)
+    setInteractive(false)
     scheduleHide()
   }
 
   return {
     visible,
     setVisible,
+    interactive,
     onPointerEnter: showThenScheduleHide,
     onPointerMove: (event) => {
       pointerRef.current = { x: event.clientX, y: event.clientY }
