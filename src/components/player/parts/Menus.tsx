@@ -1,4 +1,4 @@
-/* eslint-disable max-lines -- 含 4 个格式化函数 + 3 个 UI 构建块 + 3 个菜单组件，311 行 ≤ 400 符合特例 */
+/* eslint-disable max-lines -- 播放菜单共享同一组展示规则和选择状态，保持在一起更易审阅 */
 import { useRef } from 'react'
 import type { MediaSourceInfo, MediaStream, PlayMethod } from '@/api/types'
 import { cx } from '@/utils'
@@ -47,7 +47,7 @@ export function subtitleTitle(s: MediaStream): string {
 }
 
 /* ======== 菜单键类型（与 Controls 共享）======== */
-export type MenuKey = 'rate' | 'subtitle' | 'audio' | 'source'
+export type MenuKey = 'rate' | 'subtitle' | 'audio' | 'source' | 'tools'
 
 /* ======== 小部件：IconBtn ======== */
 export function IconBtn({

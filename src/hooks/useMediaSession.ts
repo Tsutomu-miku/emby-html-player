@@ -53,7 +53,11 @@ export function useMediaSession(params: UseMediaSessionParams) {
       [
         'play',
         () => {
-          if (video) void video.play().catch(() => {})
+          if (video) {
+            void video.play().catch((err: unknown) => {
+              console.warn('[Player] media session play failed', err)
+            })
+          }
         },
       ],
       [

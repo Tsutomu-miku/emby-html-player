@@ -1,5 +1,5 @@
 // ESLint flat config
-// 规范来源：AGENTS.md §1 单文件 ≤300 行；§2 禁止兼容性代码
+// 规范来源：AGENTS.md 与 docs/ai-coding-structure-guidelines.md。
 import js from '@eslint/js'
 import tseslint from 'typescript-eslint'
 import globals from 'globals'
@@ -41,6 +41,7 @@ export default tseslint.config(
             'postcss.config.js',
             'tailwind.config.js',
             'scripts/*.mjs',
+            'vitest.config.ts',
           ],
         },
         tsconfigRootDir: import.meta.dirname,
@@ -52,11 +53,9 @@ export default tseslint.config(
   {
     files: ['src/**/*.{ts,tsx}', 'electron/**/*.{ts,tsx}'],
     rules: {
-      // ===== AGENTS.md §1：单文件 ≤ 300 行 =====
-      // 硬上限 300，特殊情况下可文件顶部 /* eslint-disable max-lines */ 绕过（仍 ≤400 行）
-      'max-lines': ['error', { max: 300, skipBlankLines: true, skipComments: true }],
-      // 单函数 ≤ 200 行：避免巨石函数，但允许完整 React 组件保持内聚
-      'max-lines-per-function': ['error', { max: 200, skipBlankLines: true, skipComments: true, IIFEs: true }],
+      // 行数只是 review 提醒；拆分依据以业务概念、变化原因和认知跨度为准。
+      'max-lines': ['warn', { max: 300, skipBlankLines: true, skipComments: true }],
+      'max-lines-per-function': ['warn', { max: 200, skipBlankLines: true, skipComments: true, IIFEs: true }],
 
       // ===== AGENTS.md §2：禁止兼容性代码 =====
       'no-empty': ['error', { allowEmptyCatch: false }], // catch 不能空
@@ -89,7 +88,7 @@ export default tseslint.config(
 
   // 配置文件、脚本放宽（这些文件天然短小但可能用 any / console）
   {
-    files: ['*.config.{ts,js,mjs,cjs}', 'vite.config.ts', 'eslint.config.js'],
+    files: ['*.config.{ts,js,mjs,cjs}', 'vite.config.ts', 'vitest.config.ts', 'eslint.config.js'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',

@@ -194,6 +194,8 @@ export interface GetItemsParams {
   seasonId?: string
   parentIndexNumber?: number
   adjacentTo?: string
+  /** 当 limit=0 时，若为 true 仍返回 totalRecordCount，用于仅计数场景 */
+  enableTotalRecordCount?: boolean
 }
 
 /** Emby API /Search 常用 */

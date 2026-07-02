@@ -5,6 +5,8 @@
  * 类型与 preload 导出的 EhpApi 保持结构一致。这里不直接 import preload 模块，
  * 避免 renderer 类型检查时拉入 electron 运行时依赖。
  */
+import type { MediaSourceInfo, MediaStream, PlayMethod } from '@/api/types'
+
 export {}
 
 interface NetworkDebugEvent {
@@ -26,9 +28,36 @@ interface MpvBounds {
 }
 
 interface MpvEvent {
-  type: 'ready' | 'started' | 'time' | 'duration' | 'paused' | 'ended' | 'error' | 'log'
+  type:
+    | 'ready'
+    | 'loading'
+    | 'metadata'
+    | 'started'
+    | 'rendered'
+    | 'time'
+    | 'duration'
+    | 'paused'
+    | 'network'
+    | 'ended'
+    | 'error'
+    | 'log'
+    | 'ui-action'
   seconds?: number
   paused?: boolean
+  bytesPerSecond?: number
+  title?: string
+  mediaSources?: MediaSourceInfo[]
+  currentMediaSourceId?: string
+  audioStreams?: MediaStream[]
+  currentAudioIndex?: number
+  subtitleStreams?: MediaStream[]
+  currentSubtitleIndex?: number | null
+  playMethod?: PlayMethod
+  playbackRate?: number
+  hasPrev?: boolean
+  hasNext?: boolean
+  action?: 'back' | 'prev' | 'next' | 'media-source'
+  value?: string
   message?: string
   level?: string
   prefix?: string

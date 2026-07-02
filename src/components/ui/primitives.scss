@@ -80,3 +80,183 @@
   background: var(--accent);
   box-shadow: 0 0 12px rgba(100, 216, 107, 0.75);
 }
+
+/* ==========================================================================
+   FilterPill / FilterPillSelect
+   Compact capsule-shaped selector used in library toolbars.
+   ========================================================================== */
+.ds-filter-pill {
+  position: relative;
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: rgba(15, 23, 31, 0.68);
+  backdrop-filter: blur(10px);
+  font-size: 13px;
+  font-weight: 600;
+  transition:
+    transform 150ms var(--ease-out),
+    background 150ms var(--ease-out),
+    color 150ms var(--ease-out),
+    border-color 150ms var(--ease-out);
+
+  &:hover {
+    color: var(--text-strong);
+    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(100, 216, 107, 0.22);
+  }
+
+  &:active {
+    transform: translateY(0) scale(0.98);
+  }
+
+  &.is-active {
+    color: #fff;
+    border-color: rgba(100, 216, 107, 0.38);
+    background: rgba(100, 216, 107, 0.18);
+  }
+
+  &--select {
+    padding: 0 0 0 12px;
+    cursor: pointer;
+  }
+
+  &__icon {
+    display: inline-flex;
+    width: 16px;
+    height: 16px;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__label {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+
+    &.is-active {
+      color: #fff;
+    }
+  }
+
+  &__caret {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
+    color: currentColor;
+    opacity: 0.72;
+    transition: transform 150ms var(--ease-out);
+  }
+
+  &__badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    display: inline-flex;
+    min-width: 18px;
+    height: 18px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    border-radius: 999px;
+    color: #051105;
+    background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+    font-size: 10px;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(53, 184, 74, 0.5);
+  }
+
+  &__native {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    border: 0;
+    background: transparent;
+    color: transparent;
+  }
+}
+
+/* ==========================================================================
+   SegmentedControl / ViewToggle
+   Compact grouped button switcher.
+   ========================================================================== */
+.ds-segmented {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: rgba(15, 23, 31, 0.72);
+  backdrop-filter: blur(10px);
+
+  &__item {
+    display: inline-flex;
+    min-height: 30px;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 2px 12px;
+    border: 0;
+    border-radius: 999px;
+    color: var(--text-muted);
+    background: transparent;
+    font-size: 12px;
+    font-weight: 600;
+    transition:
+      background 140ms var(--ease-out),
+      color 140ms var(--ease-out),
+      transform 140ms var(--ease-out);
+
+    &:hover {
+      color: var(--text-strong);
+    }
+
+    &:active {
+      transform: scale(0.97);
+    }
+
+    &.is-active {
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+      box-shadow: 0 6px 18px rgba(53, 184, 74, 0.24);
+    }
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(100, 216, 107, 0.32);
+    }
+  }
+
+  &__icon {
+    display: inline-flex;
+    width: 14px;
+    height: 14px;
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+}

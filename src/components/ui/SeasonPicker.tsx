@@ -26,6 +26,7 @@ export function SeasonPicker({ seasons, activeId, onChange }: SeasonPickerProps)
         const isActive = s.id === activeId
         return (
           <button
+            type="button"
             key={s.id}
             onClick={() => onChange(s.id)}
             className={cx(

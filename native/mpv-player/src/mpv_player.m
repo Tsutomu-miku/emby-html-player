@@ -27,6 +27,8 @@ struct PlayerState {
   mpv_render_context* render;
   EhpMpvOpenGLView* view;
   void* glHandle;
+  int firstFrameRendered;
+  int firstFrameEventPending;
 };
 
 static napi_value Throw(napi_env env, const char* message) {
@@ -104,6 +106,7 @@ static void RenderUpdate(void* ctx) {
   CGFloat scale = [[self window] backingScaleFactor];
   int width = (int)MAX(1, bounds.size.width * scale);
   int height = (int)MAX(1, bounds.size.height * scale);
+  uint64_t updateFlags = mpv_render_context_update(_player->render);
   glViewport(0, 0, width, height);
   mpv_opengl_fbo fbo = {0, width, height, 0};
   int flipY = 1;
@@ -113,6 +116,10 @@ static void RenderUpdate(void* ctx) {
     {MPV_RENDER_PARAM_INVALID, NULL},
   };
   mpv_render_context_render(_player->render, params);
+  if (!_player->firstFrameRendered && (updateFlags & MPV_RENDER_UPDATE_FRAME)) {
+    _player->firstFrameRendered = 1;
+    _player->firstFrameEventPending = 1;
+  }
   [[self openGLContext] flushBuffer];
 }
 
@@ -239,6 +246,7 @@ static napi_value Create(napi_env env, napi_callback_info info) {
   mpv_observe_property(player->mpv, 1, "time-pos", MPV_FORMAT_DOUBLE);
   mpv_observe_property(player->mpv, 2, "duration", MPV_FORMAT_DOUBLE);
   mpv_observe_property(player->mpv, 3, "pause", MPV_FORMAT_FLAG);
+  mpv_observe_property(player->mpv, 4, "cache-speed", MPV_FORMAT_DOUBLE);
 
   char pointer[32];
   snprintf(pointer, sizeof(pointer), "%llu", (unsigned long long)(uintptr_t)player);
@@ -288,6 +296,8 @@ static napi_value Load(napi_env env, napi_callback_info info) {
   if (strlen(referer) > 0) mpv_set_property_string(player->mpv, "referrer", referer);
   int headerStatus = SetHeaderFields(env, player->mpv, args[6]);
   if (!CheckMpv(env, headerStatus, "set http-header-fields")) return NULL;
+  player->firstFrameRendered = 0;
+  player->firstFrameEventPending = 0;
 
   const char* cmd[] = {"loadfile", url, "replace", NULL};
   int status = mpv_command(player->mpv, cmd);
@@ -387,6 +397,15 @@ static napi_value PollEvent(napi_env env, napi_callback_info info) {
   if (argc != 1) return Throw(env, "pollEvent(player) requires 1 argument");
   PlayerState* player = ReadPlayer(env, args[0]);
   if (!player || !player->mpv) return Throw(env, "MPV player is not available");
+  if (player->firstFrameEventPending) {
+    player->firstFrameEventPending = 0;
+    napi_value result;
+    napi_create_object(env, &result);
+    napi_value type;
+    napi_create_string_utf8(env, "rendered", NAPI_AUTO_LENGTH, &type);
+    napi_set_named_property(env, result, "type", type);
+    return result;
+  }
   mpv_event* event = mpv_wait_event(player->mpv, 0);
   if (!event || event->event_id == MPV_EVENT_NONE) {
     napi_value result;
@@ -454,6 +473,12 @@ static napi_value PollEvent(napi_env env, napi_callback_info info) {
         napi_value paused;
         napi_get_boolean(env, *(int*)prop->data != 0, &paused);
         napi_set_named_property(env, result, "paused", paused);
+      } else if (strcmp(prop->name, "cache-speed") == 0) {
+        napi_create_string_utf8(env, "network", NAPI_AUTO_LENGTH, &type);
+        napi_set_named_property(env, result, "type", type);
+        napi_value bytesPerSecond;
+        napi_create_double(env, *(double*)prop->data, &bytesPerSecond);
+        napi_set_named_property(env, result, "bytesPerSecond", bytesPerSecond);
       } else {
         napi_get_null(env, &result);
       }

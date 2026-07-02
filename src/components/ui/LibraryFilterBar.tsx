@@ -1,232 +1,259 @@
-import { useState, useEffect, useMemo } from 'react'
-import { useAuthStore } from '@/store/auth'
-import { getGenres } from '@/api/library'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { debounce, cx } from '@/utils'
+import {
+  FilterPill,
+  FilterPillSelect,
+  SegmentedControl,
+} from '@/components/ui/primitives'
+import {
+  SORT_ICON,
+  TYPE_ICON,
+  YEAR_ICON,
+  FUNNEL_ICON,
+  SEARCH_ICON,
+  ASC_ICON,
+} from './filter-parts/icons'
+import { AdvancedPanel } from './filter-parts/AdvancedPanel'
+import type { LibraryFilterState } from './types'
+import { DEFAULT_FILTER } from './types'
 import './LibraryFilterBar.scss'
 
-export interface LibraryFilterState {
-  sortBy: string
-  sortOrder: 'Ascending' | 'Descending'
-  genre: string
-  yearFrom: string
-  yearTo: string
-  played: 'all' | 'played' | 'unplayed'
-  searchTerm: string
-}
+export type { LibraryFilterState } from './types'
+export { DEFAULT_FILTER } from './types'
 
-export const DEFAULT_FILTER: LibraryFilterState = {
-  sortBy: 'SortName',
-  sortOrder: 'Ascending',
-  genre: '',
-  yearFrom: '',
-  yearTo: '',
-  played: 'all',
-  searchTerm: '',
-}
-
-interface LibraryFilterBarProps {
-  viewId: string
+export interface LibraryFilterBarProps {
+  genres: { name: string }[]
   value: LibraryFilterState
   onChange: (v: LibraryFilterState) => void
 }
 
-const SORT_OPTIONS: { value: string; label: string }[] = [
+const SORT_OPTIONS = [
   { value: 'SortName', label: '名称' },
   { value: 'ProductionYear', label: '制作年份' },
   { value: 'PremiereDate', label: '首映日期' },
   { value: 'DateCreated', label: '添加时间' },
   { value: 'CommunityRating', label: '社区评分' },
   { value: 'Random', label: '随机' },
-]
+] as const
 
-const YEAR_PRESETS: { label: string; from: number | ''; to: number | '' }[] = [
-  { label: '全部', from: '', to: '' },
-  { label: '最近 5 年', from: new Date().getFullYear() - 5, to: '' },
-  { label: '最近 10 年', from: new Date().getFullYear() - 10, to: '' },
+const YEAR_PRESETS = [
+  { label: '全部年代', from: '' as const, to: '' as const },
+  { label: '最近 5 年', from: new Date().getFullYear() - 5, to: '' as const },
+  { label: '最近 10 年', from: new Date().getFullYear() - 10, to: '' as const },
   { label: '2010s', from: 2010, to: 2019 },
   { label: '2000s', from: 2000, to: 2009 },
-  { label: '经典 (前 2000)', from: '', to: 1999 },
+  { label: '经典 (2000前)', from: '' as const, to: 1999 },
+] as const
+
+type YearPresetKey = string
+
+function yearKey(from: string, to: string): YearPresetKey {
+  return `${from}-${to}`
+}
+
+const PLAYED_OPTIONS: {
+  value: LibraryFilterState['played']
+  label: string
+}[] = [
+  { value: 'all', label: '全部' },
+  { value: 'played', label: '已看' },
+  { value: 'unplayed', label: '未看' },
 ]
 
-/**
- * 媒体库筛选条：排序、类型、年份、已看状态、关键词搜索。
- */
-export function LibraryFilterBar({ viewId, value, onChange }: LibraryFilterBarProps) {
-  const userId = useAuthStore((s) => s.userId)
-  const [genres, setGenres] = useState<{ name: string }[]>([])
+const isDefault = (f: LibraryFilterState): boolean =>
+  f.sortBy === DEFAULT_FILTER.sortBy &&
+  f.sortOrder === DEFAULT_FILTER.sortOrder &&
+  f.genre === DEFAULT_FILTER.genre &&
+  f.yearFrom === DEFAULT_FILTER.yearFrom &&
+  f.yearTo === DEFAULT_FILTER.yearTo &&
+  f.played === DEFAULT_FILTER.played &&
+  f.searchTerm === DEFAULT_FILTER.searchTerm
 
-  // 加载 Genres
+export function LibraryFilterBar({ genres, value, onChange }: LibraryFilterBarProps) {
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const panelRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
-    let cancelled = false
-    if (!userId || !viewId) return
-    getGenres(userId, { parentId: viewId, limit: 100, recursive: true })
-      .then((r) => {
-        if (cancelled) return
-        setGenres(r.items?.map((it) => ({ name: it.name || '' })).filter((g) => g.name) || [])
-      })
-      .catch((e) => console.error('[getGenres] failed:', e))
-    return () => {
-      cancelled = true
+    if (!advancedOpen) return
+    function onClick(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setAdvancedOpen(false)
+      }
     }
-  }, [userId, viewId])
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [advancedOpen])
 
   const [searchLocal, setSearchLocal] = useState(value.searchTerm)
+  useEffect(() => setSearchLocal(value.searchTerm), [value.searchTerm])
 
-  // 外部变更同步回本地
-  useEffect(() => {
-    setSearchLocal(value.searchTerm)
-  }, [value.searchTerm])
-
-  // debounced search term
   const debouncedSearch = useMemo(
     () =>
       debounce((v: string) => {
         onChange({ ...value, searchTerm: v })
-      }, 200),
+      }, 220),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [value.sortBy, value.sortOrder, value.genre, value.yearFrom, value.yearTo, value.played],
+    [
+      value.sortBy,
+      value.sortOrder,
+      value.genre,
+      value.yearFrom,
+      value.yearTo,
+      value.played,
+    ],
   )
 
-  function update<K extends keyof LibraryFilterState>(key: K, v: LibraryFilterState[K]) {
+  function update<K extends keyof LibraryFilterState>(
+    key: K,
+    v: LibraryFilterState[K],
+  ) {
     onChange({ ...value, [key]: v })
   }
 
-  function applyYearPreset(from: number | '', to: number | '') {
-    onChange({
-      ...value,
-      yearFrom: from === '' ? '' : String(from),
-      yearTo: to === '' ? '' : String(to),
-    })
+  const yearPresetKey: YearPresetKey =
+    YEAR_PRESETS.find(
+      (p) => String(p.from) === value.yearFrom && String(p.to) === value.yearTo,
+    )
+      ? yearKey(value.yearFrom, value.yearTo)
+      : '__custom__'
+
+  function applyYearPreset(key: YearPresetKey) {
+    if (key === '__custom__') return
+    const [from, to] = key.split('-')
+    onChange({ ...value, yearFrom: from, yearTo: to })
   }
+
+  const sortLabel =
+    SORT_OPTIONS.find((o) => o.value === value.sortBy)?.label ?? '排序'
+
+  const hasActiveFilter = !isDefault(value)
+  const funnelActive =
+    value.sortOrder !== DEFAULT_FILTER.sortOrder || hasActiveFilter
+
+  function activeFilterCount(): number {
+    let n = 0
+    if (value.sortBy !== DEFAULT_FILTER.sortBy) n++
+    if (value.sortOrder !== DEFAULT_FILTER.sortOrder) n++
+    if (value.genre !== DEFAULT_FILTER.genre) n++
+    if (value.yearFrom !== DEFAULT_FILTER.yearFrom) n++
+    if (value.yearTo !== DEFAULT_FILTER.yearTo) n++
+    if (value.played !== DEFAULT_FILTER.played) n++
+    if (value.searchTerm !== DEFAULT_FILTER.searchTerm) n++
+    return n
+  }
+
+  const funnelBadge = hasActiveFilter ? String(activeFilterCount()) : undefined
 
   return (
     <div className="filter-bar">
-      <div className="filter-bar__row filter-bar__row--primary">
-        <div className="filter-bar__search">
-          <div className="filter-bar__search-wrap">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="filter-bar__search-icon"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="text"
-              value={searchLocal}
-              onChange={(e) => {
-                setSearchLocal(e.target.value)
-                debouncedSearch(e.target.value)
-              }}
-              placeholder="搜索该媒体库…"
-              className="filter-bar__input filter-bar__input--search"
-            />
-          </div>
-        </div>
-
-        <label className="filter-bar__field">
-          <span className="filter-bar__label">排序</span>
-          <select
-            value={value.sortBy}
-            onChange={(e) => update('sortBy', e.target.value)}
-            className="filter-bar__select"
-          >
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={value.sortOrder}
-            onChange={(e) => update('sortOrder', e.target.value as 'Ascending' | 'Descending')}
-            className="filter-bar__select filter-bar__select--small"
-          >
-            <option value="Ascending">升序</option>
-            <option value="Descending">降序</option>
-          </select>
-        </label>
-      </div>
-
       <div className="filter-bar__row">
-        <label className="filter-bar__field">
-          <span className="filter-bar__label">类型</span>
-          <select
-            value={value.genre}
-            onChange={(e) => update('genre', e.target.value)}
-            className="filter-bar__select filter-bar__select--wide"
-          >
-            <option value="">全部</option>
-            {genres.map((g) => (
-              <option key={g.name} value={g.name}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="filter-bar__field">
-          <span className="filter-bar__label">年代</span>
-          <select
-            value={
-              YEAR_PRESETS.find(
-                (p) => String(p.from) === value.yearFrom && String(p.to) === value.yearTo,
+        <div className="filter-bar__group">
+          <FilterPillSelect
+            icon={SORT_ICON}
+            label={sortLabel}
+            value={value.sortBy}
+            onChange={(v) => update('sortBy', v)}
+            aria-label="排序方式"
+            active={value.sortBy !== DEFAULT_FILTER.sortBy}
+            options={SORT_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+          />
+          <button
+            type="button"
+            aria-label="排序方向"
+            className={cx(
+              'filter-bar__sort-order',
+              value.sortOrder === 'Descending' && 'is-desc',
+            )}
+            onClick={() =>
+              update(
+                'sortOrder',
+                value.sortOrder === 'Ascending' ? 'Descending' : 'Ascending',
               )
-                ? `${value.yearFrom}-${value.yearTo}`
-                : '__custom__'
             }
-            onChange={(e) => {
-              if (e.target.value === '__custom__') return
-              const [f, t] = e.target.value.split('-')
-              applyYearPreset(f === '' ? '' : Number(f), t === '' ? '' : Number(t))
-            }}
-            className="filter-bar__select"
+            title={value.sortOrder === 'Ascending' ? '升序' : '降序'}
           >
-            {YEAR_PRESETS.map((p) => (
-              <option key={`${p.from}-${p.to}`} value={`${p.from}-${p.to}`}>
-                {p.label}
-              </option>
-            ))}
-            <option value="__custom__" disabled>
-              自定义
-            </option>
-          </select>
-        </label>
-
-        <div className="filter-bar__segments">
-          {(
-            [
-              { key: 'all', label: '全部' },
-              { key: 'played', label: '已看' },
-              { key: 'unplayed', label: '未看' },
-            ] as const
-          ).map((opt) => (
-            <button
-              key={opt.key}
-              type="button"
-              onClick={() => update('played', opt.key)}
-              className={cx(
-                'filter-bar__segment',
-                value.played === opt.key && 'is-active',
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
+            {ASC_ICON}
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onChange(DEFAULT_FILTER)}
-          className="filter-bar__reset"
-        >
-          重置
-        </button>
+        <FilterPillSelect
+          icon={TYPE_ICON}
+          label={value.genre ? value.genre : '类型'}
+          value={value.genre}
+          onChange={(v) => update('genre', v)}
+          aria-label="类型"
+          active={Boolean(value.genre)}
+          options={[
+            { value: '', label: '全部类型' },
+            ...genres.map((g) => ({ value: g.name, label: g.name })),
+          ]}
+        />
+
+        <FilterPillSelect
+          icon={YEAR_ICON}
+          label={
+            YEAR_PRESETS.find(
+              (p) =>
+                String(p.from) === value.yearFrom && String(p.to) === value.yearTo,
+            )?.label ?? '自定义'
+          }
+          value={yearPresetKey}
+          onChange={applyYearPreset}
+          aria-label="年代"
+          active={
+            value.yearFrom !== DEFAULT_FILTER.yearFrom ||
+            value.yearTo !== DEFAULT_FILTER.yearTo
+          }
+          options={YEAR_PRESETS.map((p) => ({
+            value: yearKey(String(p.from), String(p.to)),
+            label: p.label,
+          }))}
+        />
+
+        <SegmentedControl<LibraryFilterState['played']>
+          value={value.played}
+          onChange={(v) => update('played', v)}
+          ariaLabel="观看状态"
+          options={PLAYED_OPTIONS}
+        />
+
+        <div className="filter-bar__advanced" ref={panelRef}>
+          <FilterPill
+            label="筛选"
+            icon={FUNNEL_ICON}
+            active={funnelActive || advancedOpen}
+            caret={!advancedOpen}
+            badge={funnelBadge}
+            ariaLabel="更多筛选"
+            onClick={() => setAdvancedOpen((v) => !v)}
+          />
+          {advancedOpen ? (
+            <AdvancedPanel
+              value={value}
+              onChange={onChange}
+              onReset={() => onChange(DEFAULT_FILTER)}
+              hasActiveFilter={hasActiveFilter}
+            />
+          ) : null}
+        </div>
+
+        <div className="filter-bar__spacer" />
+
+        <div className="filter-bar__search">
+          <span className="filter-bar__search-icon" aria-hidden="true">
+            {SEARCH_ICON}
+          </span>
+          <input
+            type="text"
+            value={searchLocal}
+            onChange={(e) => {
+              setSearchLocal(e.target.value)
+              debouncedSearch(e.target.value)
+            }}
+            placeholder="搜索该媒体库…"
+            className="filter-bar__input filter-bar__input--search"
+          />
+        </div>
       </div>
     </div>
   )

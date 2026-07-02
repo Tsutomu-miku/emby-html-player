@@ -34,10 +34,10 @@ export function SeasonEpisodePanel({
     <>
       {/* Series：季选择器 + 剧集列表 */}
       {type === 'Series' && seasons.length > 0 && (
-        <section className="space-y-4 pt-4">
-          <div className="flex items-baseline justify-between gap-4">
-            <h2 className="text-lg font-semibold">剧集</h2>
-          </div>
+        <section className="detail-section">
+          <header className="detail-section__header">
+            <h2>剧集</h2>
+          </header>
           <SeasonPicker
             seasons={seasons}
             activeId={activeSeasonId}
@@ -53,8 +53,10 @@ export function SeasonEpisodePanel({
 
       {/* Season：季选择器 + 剧集列表 */}
       {type === 'Season' && (
-        <section className="space-y-4 pt-4">
-          <h2 className="text-lg font-semibold">本季剧集</h2>
+        <section className="detail-section">
+          <header className="detail-section__header">
+            <h2>本季剧集</h2>
+          </header>
           <EpisodeList
             loading={episodesLoading}
             items={episodes}
@@ -65,9 +67,11 @@ export function SeasonEpisodePanel({
 
       {/* Episode：同季其它集数提示 */}
       {type === 'Episode' && siblingEpisodes.length > 1 && (
-        <section className="space-y-3 pt-4">
-          <h2 className="text-lg font-semibold">本季其它集数</h2>
-          <div className="space-y-2">
+        <section className="detail-section">
+          <header className="detail-section__header">
+            <h2>本季其它集数</h2>
+          </header>
+          <div className="episode-list">
             {siblingEpisodes
               .filter((e) => e.id !== item.id)
               .slice(0, 12)
@@ -98,11 +102,11 @@ export function EpisodeList({
   }
   if (loading && items.length === 0) {
     return (
-      <div className="space-y-3">
+      <div className="episode-list">
         {Array.from({ length: 6 }).map((_, i) => (
           <div
             key={i}
-            className="grid grid-cols-[110px_1fr] sm:grid-cols-[160px_1fr] gap-3 sm:gap-4 p-2 sm:p-3"
+            className="episode-row episode-row--loading"
           >
             <div className="aspect-video skeleton rounded" />
             <div className="space-y-2">
@@ -117,10 +121,10 @@ export function EpisodeList({
     )
   }
   if (items.length === 0) {
-    return <div className="py-10 text-center text-jelly-muted text-sm">暂无剧集</div>
+    return <div className="detail-section__empty">暂无剧集</div>
   }
   return (
-    <div className="space-y-2">
+    <div className="episode-list">
       {items.map((ep) => (
         <EpisodeRow key={ep.id} episode={ep} />
       ))}

@@ -24,10 +24,32 @@ export interface MpvCommandRequest {
 
 export type MpvEvent =
   | { type: 'ready' }
+  | { type: 'loading' }
+  | {
+      type: 'metadata'
+      title: string
+      mediaSources?: unknown[]
+      currentMediaSourceId?: string
+      audioStreams?: unknown[]
+      currentAudioIndex?: number
+      subtitleStreams?: unknown[]
+      currentSubtitleIndex?: number | null
+      playMethod?: string
+      playbackRate?: number
+      hasPrev?: boolean
+      hasNext?: boolean
+    }
+  | {
+      type: 'ui-action'
+      action: 'back' | 'prev' | 'next' | 'media-source'
+      value?: string
+    }
   | { type: 'started' }
+  | { type: 'rendered' }
   | { type: 'time'; seconds: number }
   | { type: 'duration'; seconds: number }
   | { type: 'paused'; paused: boolean }
+  | { type: 'network'; bytesPerSecond: number }
   | { type: 'ended' }
   | { type: 'error'; message: string }
   | { type: 'log'; level: string; prefix: string; message: string }

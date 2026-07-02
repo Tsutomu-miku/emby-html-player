@@ -20,10 +20,39 @@ export interface MpvBounds {
 }
 
 export interface MpvEvent {
-  type: 'ready' | 'started' | 'time' | 'duration' | 'paused' | 'ended' | 'error'
+  type:
+    | 'ready'
+    | 'loading'
+    | 'metadata'
+    | 'started'
+    | 'rendered'
+    | 'time'
+    | 'duration'
+    | 'paused'
+    | 'network'
+    | 'ended'
+    | 'error'
+    | 'log'
+    | 'ui-action'
   seconds?: number
   paused?: boolean
+  bytesPerSecond?: number
+  title?: string
+  mediaSources?: unknown[]
+  currentMediaSourceId?: string
+  audioStreams?: unknown[]
+  currentAudioIndex?: number
+  subtitleStreams?: unknown[]
+  currentSubtitleIndex?: number | null
+  playMethod?: string
+  playbackRate?: number
+  hasPrev?: boolean
+  hasNext?: boolean
+  action?: 'back' | 'prev' | 'next' | 'media-source'
+  value?: string
   message?: string
+  level?: string
+  prefix?: string
 }
 
 const api = {

@@ -1,5 +1,5 @@
 import type { MediaSourceInfo, PlayMethod } from '../types'
-import { useAuthStore } from '@/store/auth'
+import { getEmbyApiSession } from '../embyApiSession'
 
 export class UnplayableSourceError extends Error {
   constructor(message: string) {
@@ -9,7 +9,7 @@ export class UnplayableSourceError extends Error {
 }
 
 export function resolveEmbeddedPlaybackUrl(itemId: string, mediaSource: MediaSourceInfo): string {
-  const { accessToken, deviceId, server } = useAuthStore.getState()
+  const { accessToken, deviceId, server } = getEmbyApiSession()
   const base = (server || '').replace(/\/+$/, '')
   if (mediaSource.protocol === 'File') {
     const url = new URL(`${base}/Items/${itemId}/File`)
@@ -55,12 +55,7 @@ export function resolveMediaPlayback(params: {
     preferredMethod,
   } = params
 
-  const auth = {
-    ...useAuthStore.getState(),
-    userId: params.userId ?? useAuthStore.getState().userId,
-  }
-  const { accessToken, deviceId, server } = auth
-  void auth.userId // params.userId 被合并到 auth 中，保持接口契约但内部未使用
+  const { accessToken, deviceId, server } = getEmbyApiSession()
   const base = (server || '').replace(/\/+$/, '')
   const browserPlayable = isBrowserPlayableSource(mediaSource)
 
@@ -257,7 +252,7 @@ export function getSubtitleUrl(params: {
   /** 目标格式：vtt 或 srt/ass 等 */
   format?: string
 }): string {
-  const { server, accessToken, deviceId } = useAuthStore.getState()
+  const { server, accessToken, deviceId } = getEmbyApiSession()
   const base = (server || '').replace(/\/+$/, '')
   if (!base) return ''
   const fmt = params.format || 'vtt'

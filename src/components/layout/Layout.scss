@@ -1,11 +1,13 @@
 .app-shell {
+  position: relative;
+  z-index: 0;
   display: flex;
   min-height: 100vh;
   flex-direction: column;
   background:
-    radial-gradient(circle at 58% 0%, rgba(120, 112, 96, 0.2), transparent 34rem),
-    radial-gradient(circle at 100% 34%, rgba(28, 86, 106, 0.18), transparent 34rem),
-    linear-gradient(135deg, var(--app-bg) 0%, #0a141d 52%, var(--app-bg-soft) 100%);
+    radial-gradient(circle at 68% 0%, rgba(128, 142, 138, 0.17), transparent 34rem),
+    radial-gradient(circle at 100% 36%, rgba(41, 84, 96, 0.12), transparent 32rem),
+    linear-gradient(135deg, #05090d 0%, #081018 52%, #0a141b 100%);
 
   &__content {
     display: flex;
@@ -22,7 +24,7 @@
     width: 100%;
     max-width: 1600px;
     margin: 0 auto;
-    padding: 20px 16px 32px;
+    padding: 4px 16px 32px;
   }
 }
 
@@ -31,7 +33,7 @@
     flex-direction: row;
 
     &__container {
-      padding: 24px 28px 40px;
+      padding: 4px 28px 40px;
     }
   }
 }

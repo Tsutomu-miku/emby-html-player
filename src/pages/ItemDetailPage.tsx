@@ -11,7 +11,7 @@ import {
 import { getUserViews } from '@/api'
 import type { BaseItemDto, QueryResult } from '@/api/types'
 import { useAsync } from '@/hooks/useAsync'
-import { posterUrl, backdropUrl, logoUrl, thumbUrl } from '@/api/images'
+import { posterUrl, backdropUrl, thumbUrl } from '@/api/images'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { collectionTypeLabel } from '@/components/layout/Sidebar'
 import { useEpisodeData } from './item-detail/useEpisodeData'
@@ -21,6 +21,7 @@ import { CastList } from './item-detail/CastList'
 import { SeasonEpisodePanel } from './item-detail/SeasonEpisodePanel'
 import { SimilarSection } from './item-detail/SimilarSection'
 import { ChildrenGrid } from './item-detail/ChildrenGrid'
+import './ItemDetailPage.scss'
 
 // 为未来引用预留（LibraryFilterBar 中按视图 collectionType 过滤类型）
 void getUserViews
@@ -51,11 +52,12 @@ export function ItemDetailPage() {
   const [isFav, setIsFav] = useState<boolean | null>(null)
   const [isPlayed, setIsPlayed] = useState<boolean | null>(null)
   const [overviewExpanded, setOverviewExpanded] = useState(false)
+  const itemUserData = item?.userData
   useEffect(() => {
-    if (!item?.userData) return
-    setIsFav(item.userData.isFavorite ?? false)
-    setIsPlayed(item.userData.played ?? false)
-  }, [item?.userData?.isFavorite, item?.userData?.played])
+    if (!itemUserData) return
+    setIsFav(itemUserData.isFavorite ?? false)
+    setIsPlayed(itemUserData.played ?? false)
+  }, [itemUserData])
 
   async function toggleFav() {
     if (!userId || !itemId) return
@@ -138,13 +140,13 @@ export function ItemDetailPage() {
   // ============ Loading skeleton ============
   if (itemState.loading || !item) {
     return (
-      <div className="space-y-6">
-        <div className="rounded-2xl h-80 md:h-[420px] skeleton overflow-hidden" />
-        <div className="mt-[-80px] relative px-4 flex gap-4 md:gap-6">
-          <div className="w-48 md:w-56 shrink-0 hidden sm:block">
-            <div className="aspect-[2/3] skeleton rounded-xl shadow-2xl" />
+      <div className="item-detail-page">
+        <div className="item-detail-hero skeleton" />
+        <div className="item-detail-info">
+          <div className="item-detail-info__poster">
+            <div className="item-detail-info__poster-box skeleton" />
           </div>
-          <div className="flex-1 min-w-0 space-y-3 pt-20">
+          <div className="item-detail-info__content item-detail-info__content--loading">
             <div className="h-8 skeleton w-1/2" />
             <div className="h-4 skeleton w-1/3" />
             <div className="h-4 skeleton" />
@@ -163,11 +165,15 @@ export function ItemDetailPage() {
   // ============ Render ============
   const backdropSrc = backdropUrl(item, { quality: 80, placeholderOnMissing: true })
   const posterSrc = posterUrl(item, { quality: 80, placeholderOnMissing: true })
-  const logoSrc = logoUrl(item, { quality: 80 })
+  const isVideoLikeItem =
+    type === 'Movie' ||
+    type === 'Trailer' ||
+    type === 'Video' ||
+    type === 'MusicVideo'
 
   return (
-    <div className="space-y-6 relative">
-      <HeroSection item={item} backdropSrc={backdropSrc} logoSrc={logoSrc} />
+    <div className="item-detail-page">
+      <HeroSection backdropSrc={backdropSrc} />
 
       <InfoPanel
         item={item}
@@ -186,7 +192,12 @@ export function ItemDetailPage() {
         onToggleOverview={() => setOverviewExpanded((v) => !v)}
       />
 
-      {item.people && item.people.length > 0 && <CastList people={item.people} />}
+      {isVideoLikeItem && (
+        <SimilarSection
+          items={similarState.data ? similarState.data.items : []}
+          loading={similarState.loading}
+        />
+      )}
 
       <SeasonEpisodePanel
         type={type}
@@ -200,15 +211,7 @@ export function ItemDetailPage() {
         siblingEpisodes={ep.siblings}
       />
 
-      {(type === 'Movie' ||
-        type === 'Trailer' ||
-        type === 'Video' ||
-        type === 'MusicVideo') && (
-        <SimilarSection
-          items={similarState.data?.items || []}
-          loading={similarState.loading}
-        />
-      )}
+      {item.people && item.people.length > 0 && <CastList people={item.people} />}
 
       {(type === 'BoxSet' ||
         type === 'Folder' ||

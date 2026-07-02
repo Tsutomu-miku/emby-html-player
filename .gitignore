@@ -14,6 +14,7 @@ out
 release
 native/mpv-player/build
 *.local
+.agents
 
 # Editor directories and files
 .vscode/*

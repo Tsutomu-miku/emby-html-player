@@ -49,8 +49,12 @@ export function HorizontalRow({
           <Link
             to={seeMoreHref}
             className="media-row__more"
+            aria-label="查看更多"
+            title="查看更多"
           >
-            查看更多
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 6 15 12 9 18" />
+            </svg>
           </Link>
         )}
       </header>
@@ -73,12 +77,31 @@ export function HorizontalRow({
                   showPlayButton={itemClickMode === 'play'}
                   clickMode={itemClickMode}
                 />
-                <div className="media-row__caption" title={item.name}>
-                  {item.name || '未命名'}
-                </div>
+                <RowCaption item={item} />
               </div>
             ))}
       </div>
     </section>
+  )
+}
+
+function RowCaption({ item }: { item: BaseItemDto }) {
+  const sub: string[] = []
+  if (item.type === 'Episode') {
+    const s = item.parentIndexNumber ? `S${item.parentIndexNumber}` : ''
+    const e = item.indexNumber ? `E${item.indexNumber}` : ''
+    if (s || e) sub.push([s, e].filter(Boolean).join('·'))
+  } else if (item.productionYear) {
+    sub.push(String(item.productionYear))
+  }
+  return (
+    <>
+      <div className="media-row__caption" title={item.name}>
+        {item.name || '未命名'}
+      </div>
+      {sub.length > 0 && (
+        <div className="media-row__subcaption">{sub.join(' · ')}</div>
+      )}
+    </>
   )
 }
