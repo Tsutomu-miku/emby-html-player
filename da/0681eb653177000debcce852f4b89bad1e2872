@@ -1,0 +1,14 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "da0681eb653177000debcce852f4b89bad1e2872",
+  "prompts": {},
+  "humans": {
+    "h_3f8db872363dd2": {
+      "author": "Relay <relay@local>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
