@@ -158,16 +158,43 @@ function sampleStats(args: {
 }): PlaybackStats {
   const { video, hls, mpv, playbackBackend, mediaSourceBitrate, mediaSourceLabel, stall } = args
 
+  // mpv backend, but control object not yet initialized — treat as black screen
+  // and fall back to whatever metadata we have (source label / bitrate).
+  if (playbackBackend === 'mpv' && !mpv) {
+    return {
+      engine: 'mpv (初始化中)',
+      currentBitrateKbps: mediaSourceBitrate ? Math.round(mediaSourceBitrate / 1000) : 0,
+      networkBytesPerSecond: 0,
+      bufferedAheadSeconds: 0,
+      resolution: '',
+      fps: 0,
+      videoCodec: '',
+      audioCodec: '',
+      hwdecActive: null,
+      droppedFrames: 0,
+      stallCount: stall.count,
+      stallSecondsTotal: stall.totalSec,
+      sourceLabel: mediaSourceLabel ?? '',
+      isBlackScreen: true,
+    }
+  }
+
   if (playbackBackend === 'mpv' && mpv) {
     // mpv exposes network speed + duration on the control; for the rest we
     // query codec/resolution via a best-effort ephemeral property read.
     const bw = mpv.networkBytesPerSecond ?? 0
-    const isBlackScreen = mpv.started !== true
+    const bufferedAhead = Math.max(0, (mpv.bufferedEnd ?? 0) - (mpv.currentTime ?? 0))
+    // Black-screen / buffering windows for mpv:
+    //   (a) mpv.started !== true — initial decode hasn't produced a frame.
+    //   (b) started && buffered-ahead is starved (< 0.5 s) while we are still
+    //       pulling bytes — classic stall/mid-stream re-buffer.
+    const reBuffering = mpv.started === true && bufferedAhead < 0.5 && bw > 0
+    const isBlackScreen = mpv.started !== true || reBuffering
     return {
       engine: 'mpv (libmpv)',
       currentBitrateKbps: mediaSourceBitrate ? Math.round(mediaSourceBitrate / 1000) : 0,
       networkBytesPerSecond: bw,
-      bufferedAheadSeconds: Math.max(0, (mpv.bufferedEnd ?? 0) - (mpv.currentTime ?? 0)),
+      bufferedAheadSeconds: bufferedAhead,
       resolution: readMpvVideoResolution(),
       fps: 0,
       videoCodec: (window as unknown as { __mpvLastCodec?: string }).__mpvLastCodec ?? '',
