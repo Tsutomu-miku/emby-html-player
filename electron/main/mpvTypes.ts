@@ -24,6 +24,7 @@ export interface MpvCommandRequest {
 
 export type MpvEvent =
   | { type: 'ready' }
+  | { type: 'loading' }
   | {
       type: 'metadata'
       title: string
@@ -44,6 +45,7 @@ export type MpvEvent =
       value?: string
     }
   | { type: 'started' }
+  | { type: 'rendered' }
   | { type: 'time'; seconds: number }
   | { type: 'duration'; seconds: number }
   | { type: 'paused'; paused: boolean }

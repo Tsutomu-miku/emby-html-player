@@ -30,6 +30,7 @@ const initialState: MpvPlaybackState = {
   muted: false,
   volume: 1,
   started: false,
+  firstFrameRendered: false,
   networkBytesPerSecond: 0,
 }
 
@@ -82,6 +83,10 @@ export function useEmbeddedMpv(params: UseEmbeddedMpvParams): PlayerControl | un
       if (cancelled) return
       if (event.type === 'log') return
       switch (event.type) {
+        case 'loading':
+          playbackStarted = false
+          setState({ ...initialState, currentTime: startSeconds, duration: initialDurationSeconds })
+          break
         case 'started':
           markStarted()
           setState((cur) => ({ ...cur, started: true, paused: false }))
@@ -92,6 +97,10 @@ export function useEmbeddedMpv(params: UseEmbeddedMpvParams): PlayerControl | un
             })
           }
           latestRef.current.onStarted?.()
+          break
+        case 'rendered':
+          markStarted()
+          setState((cur) => ({ ...cur, started: true, firstFrameRendered: true }))
           break
         case 'time':
           markStarted()
@@ -213,6 +222,7 @@ function createMpvControl(
     muted: state.muted,
     volume: state.volume,
     started: state.started,
+    firstFrameRendered: state.firstFrameRendered,
     networkBytesPerSecond: state.networkBytesPerSecond,
     bufferedEnd: state.duration,
     canPictureInPicture: false,

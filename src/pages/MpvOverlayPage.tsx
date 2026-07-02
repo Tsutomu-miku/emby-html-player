@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Controls } from '@/components/player/Controls'
 import type { PlayerControl } from '@/components/player/backends/control'
 import type { MediaSourceInfo, MediaStream, PlayMethod } from '@/api/types'
+import { MpvStartupStatus } from './mpv-overlay/MpvStartupStatus'
 import { useMpvOverlayVisibility } from './mpv-overlay/useMpvOverlayVisibility'
 import './MpvOverlayPage.scss'
 
@@ -23,6 +24,8 @@ interface OverlayState {
   hasPrev: boolean
   hasNext: boolean
   started: boolean
+  firstFrameRendered: boolean
+  loadingStartedAt: number
   speed: number
   error: string
 }
@@ -43,6 +46,8 @@ const initialState: OverlayState = {
   hasPrev: false,
   hasNext: false,
   started: false,
+  firstFrameRendered: false,
+  loadingStartedAt: Date.now(),
   speed: 0,
   error: '',
 }
@@ -52,6 +57,7 @@ export function MpvOverlayPage() {
   const containerRef = useRef<HTMLDivElement>(null)
   const controlsVisibility = useMpvOverlayVisibility(containerRef)
   const setControlsVisible = controlsVisibility.setVisible
+  const [now, setNow] = useState(() => Date.now())
   const stateRef = useRef(initialState)
   stateRef.current = state
 
@@ -80,8 +86,24 @@ export function MpvOverlayPage() {
           hasNext: event.hasNext ?? cur.hasNext,
         }))
         break
+      case 'loading':
+        setState((cur) => ({
+          ...cur,
+          started: false,
+          firstFrameRendered: false,
+          currentTime: 0,
+          duration: 0,
+          speed: 0,
+          error: '',
+          loadingStartedAt: Date.now(),
+        }))
+        setControlsVisible(true)
+        break
       case 'started':
         setState((cur) => ({ ...cur, started: true, paused: false, error: '' }))
+        break
+      case 'rendered':
+        setState((cur) => ({ ...cur, started: true, firstFrameRendered: true, error: '' }))
         break
       case 'time':
         setState((cur) => ({
@@ -123,6 +145,12 @@ export function MpvOverlayPage() {
     void sendMpvCommand('request-overlay-metadata', [], 'metadata snapshot')
   }, [])
 
+  useEffect(() => {
+    if (state.firstFrameRendered || state.error) return
+    const timer = window.setInterval(() => setNow(Date.now()), 500)
+    return () => window.clearInterval(timer)
+  }, [state.error, state.firstFrameRendered])
+
   const runCommand = useCallback((command: string, args: unknown[], label: string) => {
     return sendMpvCommand(command, args, label)
   }, [])
@@ -136,6 +164,7 @@ export function MpvOverlayPage() {
     bufferedEnd: state.duration,
     canPictureInPicture: false,
     started: state.started,
+    firstFrameRendered: state.firstFrameRendered,
     networkBytesPerSecond: state.speed,
     play: () => runCommand('set-pause', [false], 'play'),
     pause: () => { void runCommand('set-pause', [true], 'pause') },
@@ -179,7 +208,16 @@ export function MpvOverlayPage() {
         }
       }}
     >
-      {!state.started ? (
+      {!state.firstFrameRendered && !state.error ? (
+        <MpvStartupStatus
+          currentTime={state.currentTime}
+          elapsedSeconds={Math.max(0, (now - state.loadingStartedAt) / 1000)}
+          fileLoaded={state.started}
+          speed={state.speed}
+        />
+      ) : null}
+
+      {!state.firstFrameRendered ? (
         <div className="mpv-overlay__loading">
           <div className="mpv-overlay__spinner" />
           <div>{speedText ? `媒体数据接收中：${speedText}` : '正在等待媒体数据…'}</div>

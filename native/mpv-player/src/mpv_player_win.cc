@@ -28,6 +28,7 @@ struct MpvApi {
   mpv_event* (*mpv_wait_event)(mpv_handle*, double);
   int (*mpv_render_context_create)(mpv_render_context**, mpv_handle*, mpv_render_param*);
   void (*mpv_render_context_set_update_callback)(mpv_render_context*, mpv_render_update_fn, void*);
+  uint64_t (*mpv_render_context_update)(mpv_render_context*);
   void (*mpv_render_context_render)(mpv_render_context*, mpv_render_param*);
   void (*mpv_render_context_free)(mpv_render_context*);
 };
@@ -38,6 +39,8 @@ struct PlayerState {
   HWND hwnd;
   HDC hdc;
   HGLRC glrc;
+  int firstFrameRendered;
+  int firstFrameEventPending;
 };
 
 static MpvApi g_mpv = {};
@@ -161,6 +164,7 @@ static bool EnsureMpvApiLoaded() {
   LOAD_MPV_SYMBOL(mpv_wait_event);
   LOAD_MPV_SYMBOL(mpv_render_context_create);
   LOAD_MPV_SYMBOL(mpv_render_context_set_update_callback);
+  LOAD_MPV_SYMBOL(mpv_render_context_update);
   LOAD_MPV_SYMBOL(mpv_render_context_render);
   LOAD_MPV_SYMBOL(mpv_render_context_free);
   return true;
@@ -182,6 +186,7 @@ static void Render(PlayerState* player) {
   int width = MaxInt(1, rect.right - rect.left);
   int height = MaxInt(1, rect.bottom - rect.top);
   wglMakeCurrent(player->hdc, player->glrc);
+  uint64_t updateFlags = g_mpv.mpv_render_context_update(player->render);
   glViewport(0, 0, width, height);
   mpv_opengl_fbo fbo = {0, width, height, 0};
   int flipY = 0;
@@ -191,6 +196,10 @@ static void Render(PlayerState* player) {
     {MPV_RENDER_PARAM_INVALID, NULL},
   };
   g_mpv.mpv_render_context_render(player->render, params);
+  if (!player->firstFrameRendered && (updateFlags & MPV_RENDER_UPDATE_FRAME)) {
+    player->firstFrameRendered = 1;
+    player->firstFrameEventPending = 1;
+  }
   SwapBuffers(player->hdc);
 }
 
@@ -417,6 +426,8 @@ static napi_value Load(napi_env env, napi_callback_info info) {
   if (strlen(referer) > 0) g_mpv.mpv_set_property_string(player->mpv, "referrer", referer);
   int headerStatus = SetHeaderFields(env, player->mpv, args[6]);
   if (!CheckMpv(env, headerStatus, "set http-header-fields")) return NULL;
+  player->firstFrameRendered = 0;
+  player->firstFrameEventPending = 0;
 
   const char* cmd[] = {"loadfile", url, "replace", NULL};
   int status = g_mpv.mpv_command(player->mpv, cmd);
@@ -501,6 +512,15 @@ static napi_value PollEvent(napi_env env, napi_callback_info info) {
   if (argc != 1) return Throw(env, "pollEvent(player) requires 1 argument");
   PlayerState* player = ReadPlayer(env, args[0]);
   if (!player || !player->mpv) return Throw(env, "MPV player is not available");
+  if (player->firstFrameEventPending) {
+    player->firstFrameEventPending = 0;
+    napi_value result;
+    napi_create_object(env, &result);
+    napi_value type;
+    napi_create_string_utf8(env, "rendered", NAPI_AUTO_LENGTH, &type);
+    napi_set_named_property(env, result, "type", type);
+    return result;
+  }
   mpv_event* event = g_mpv.mpv_wait_event(player->mpv, 0);
   if (!event || event->event_id == MPV_EVENT_NONE) {
     napi_value result;

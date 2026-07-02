@@ -23,6 +23,7 @@ const __dir = import.meta.dirname
 
 interface PlaybackSnapshot {
   started: boolean
+  rendered: boolean
   currentTime: number
   duration: number
   paused: boolean
@@ -46,6 +47,10 @@ export function installEmbeddedMpvIpc(
 
 class EmbeddedMpvService {
   private overlayWindow: BrowserWindow | null = null
+  private ownerWindow: BrowserWindow | null = null
+  private readonly destroyOnOwnerClose = () => {
+    void this.destroy()
+  }
   private metadataSnapshot: MetadataEvent = { type: 'metadata', title: '' }
   private playbackSnapshot: PlaybackSnapshot = createInitialPlaybackSnapshot()
 
@@ -57,6 +62,7 @@ class EmbeddedMpvService {
 
   async create(payload: MpvCreateRequest): Promise<void> {
     const window = this.requireWindow()
+    this.bindOwnerWindow(window)
     this.playbackSnapshot = createInitialPlaybackSnapshot()
     this.backend.setEventCallback((event) => {
       this.sendEvent(event)
@@ -71,6 +77,8 @@ class EmbeddedMpvService {
 
   async load(payload: MpvLoadRequest): Promise<void> {
     const headers = buildEmbyNativeMediaHeaders(this.getAuth())
+    this.playbackSnapshot = createInitialPlaybackSnapshot()
+    this.sendEvent({ type: 'loading' })
     this.sendEvent(mergeLoadMetadata(this.metadataSnapshot, payload.title ?? ''))
     if (DEBUG_LOGS) {
       console.warn('[main] MPV/EMBY load', {
@@ -115,6 +123,7 @@ class EmbeddedMpvService {
   }
 
   async destroy(): Promise<void> {
+    this.unbindOwnerWindow()
     await this.backend.destroy()
     this.playbackSnapshot = createInitialPlaybackSnapshot()
     this.destroyOverlay()
@@ -193,6 +202,19 @@ class EmbeddedMpvService {
     if (overlay && !overlay.isDestroyed()) overlay.close()
   }
 
+  private bindOwnerWindow(window: BrowserWindow): void {
+    if (this.ownerWindow === window) return
+    this.unbindOwnerWindow()
+    this.ownerWindow = window
+    window.once('close', this.destroyOnOwnerClose)
+  }
+
+  private unbindOwnerWindow(): void {
+    if (!this.ownerWindow) return
+    this.ownerWindow.removeListener('close', this.destroyOnOwnerClose)
+    this.ownerWindow = null
+  }
+
   private setOverlayInteractive(interactive: boolean): void {
     if (!this.overlayWindow || this.overlayWindow.isDestroyed()) return
     this.overlayWindow.setIgnoreMouseEvents(!interactive, { forward: true })
@@ -201,6 +223,7 @@ class EmbeddedMpvService {
   private sendOverlaySnapshot(): void {
     this.sendEvent(this.metadataSnapshot)
     if (this.playbackSnapshot.started) this.sendEvent({ type: 'started' })
+    if (this.playbackSnapshot.rendered) this.sendEvent({ type: 'rendered' })
     if (this.playbackSnapshot.duration > 0) {
       this.sendEvent({ type: 'duration', seconds: this.playbackSnapshot.duration })
     }
@@ -218,6 +241,10 @@ class EmbeddedMpvService {
       case 'started':
         this.playbackSnapshot.started = true
         this.playbackSnapshot.paused = false
+        break
+      case 'rendered':
+        this.playbackSnapshot.started = true
+        this.playbackSnapshot.rendered = true
         break
       case 'time':
         this.playbackSnapshot.started = true
@@ -239,6 +266,7 @@ class EmbeddedMpvService {
         break
       case 'error':
       case 'log':
+      case 'loading':
       case 'metadata':
       case 'ready':
       case 'ui-action':
@@ -271,6 +299,7 @@ function readBooleanArg(input: MpvCommandRequest): boolean {
 function createInitialPlaybackSnapshot(): PlaybackSnapshot {
   return {
     started: false,
+    rendered: false,
     currentTime: 0,
     duration: 0,
     paused: true,

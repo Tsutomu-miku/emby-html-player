@@ -354,7 +354,7 @@ export function Player(props: PlayerProps) {
   const hasOtherSource = playbackInfoMediaSources.length > 1
   const showLoadingOverlay =
     loadState === 'loading' ||
-    (loadState === 'ready' && playbackBackend === 'mpv' && mpvControl?.started !== true)
+    (loadState === 'ready' && playbackBackend === 'mpv' && mpvControl?.firstFrameRendered !== true)
   return (
     <div ref={containerRef} className={cx('relative bg-black rounded-xl overflow-hidden aspect-video w-full shadow-2xl group ring-1 ring-white/5', className)}>
       <video

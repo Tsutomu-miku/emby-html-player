@@ -185,11 +185,12 @@ function sampleStats(args: {
     const bw = mpv.networkBytesPerSecond ?? 0
     const bufferedAhead = Math.max(0, (mpv.bufferedEnd ?? 0) - (mpv.currentTime ?? 0))
     // Black-screen / buffering windows for mpv:
-    //   (a) mpv.started !== true — initial decode hasn't produced a frame.
+    //   (a) firstFrameRendered !== true — native render callback has not drawn
+    //       a frame yet; file-loaded/time events can arrive before the screen changes.
     //   (b) started && buffered-ahead is starved (< 0.5 s) while we are still
     //       pulling bytes — classic stall/mid-stream re-buffer.
-    const reBuffering = mpv.started === true && bufferedAhead < 0.5 && bw > 0
-    const isBlackScreen = mpv.started !== true || reBuffering
+    const reBuffering = mpv.firstFrameRendered === true && bufferedAhead < 0.5 && bw > 0
+    const isBlackScreen = mpv.firstFrameRendered !== true || reBuffering
     return {
       engine: 'mpv (libmpv)',
       currentBitrateKbps: mediaSourceBitrate ? Math.round(mediaSourceBitrate / 1000) : 0,

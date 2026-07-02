@@ -30,8 +30,10 @@ interface MpvBounds {
 interface MpvEvent {
   type:
     | 'ready'
+    | 'loading'
     | 'metadata'
     | 'started'
+    | 'rendered'
     | 'time'
     | 'duration'
     | 'paused'
