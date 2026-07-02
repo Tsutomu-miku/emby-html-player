@@ -1,0 +1,178 @@
+/* Tiny corner overlay for live playback telemetry. */
+.player-stats-overlay {
+  --pso-bg: rgba(6, 11, 18, 0.86);
+  --pso-row-gap: 6px 12px;
+  position: absolute;
+  right: 12px;
+  bottom: 96px;
+  z-index: 25;
+  display: grid;
+  width: min(320px, calc(100% - 24px));
+  border: 1px solid rgba(100, 216, 107, 0.22);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(100, 216, 107, 0.05), transparent 40%),
+    var(--pso-bg);
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  color: var(--text-strong);
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  user-select: all;
+  pointer-events: auto;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  &__title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  &__close {
+    display: grid;
+    width: 22px;
+    height: 22px;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      background 140ms var(--ease-out),
+      color 140ms var(--ease-out);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-strong);
+    }
+  }
+
+  &__rows {
+    list-style: none;
+    margin: 0;
+    padding: 10px 12px 12px;
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: var(--pso-row-gap);
+  }
+
+  &__row {
+    display: contents;
+  }
+
+  &__key {
+    margin: 0;
+    color: var(--text-muted);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  &__value {
+    margin: 0;
+    color: var(--text-strong);
+    font-weight: 600;
+    text-align: right;
+    tabular-nums: tabular-nums;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 640px) {
+  .player-stats-overlay {
+    bottom: 112px;
+  }
+}
+
+/* 黑屏期的迷你提示条（单行、靠左、更克制）*/
+.player-stats-overlay--mini {
+  right: auto;
+  left: 12px;
+  bottom: 96px;
+  z-index: 35;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: auto;
+  max-width: min(640px, calc(100% - 24px));
+  padding: 8px 10px 8px 12px;
+  border-color: rgba(250, 173, 20, 0.35);
+  background:
+    linear-gradient(180deg, rgba(250, 173, 20, 0.1), transparent 50%),
+    var(--pso-bg);
+  color: var(--text-strong);
+  font-size: 12px;
+  line-height: 1;
+
+  .player-stats-overlay__mini-dot {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: #faad14;
+    box-shadow: 0 0 0 4px rgba(250, 173, 20, 0.15);
+    animation: pso-pulse 1.2s ease-in-out infinite;
+  }
+
+  .player-stats-overlay__mini-title {
+    flex: 0 0 auto;
+    color: #ffe4b3;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .player-stats-overlay__mini-pill {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-strong);
+    font-weight: 600;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    tabular-nums: tabular-nums;
+  }
+
+  .player-stats-overlay__mini-expand {
+    flex: 0 0 auto;
+    height: 22px;
+    padding: 0 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-strong);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      background 140ms var(--ease-out),
+      border-color 140ms var(--ease-out);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.22);
+    }
+  }
+
+  .player-stats-overlay__close {
+    width: 20px;
+    height: 20px;
+    font-size: 14px;
+  }
+}
+
+@keyframes pso-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(1.25); }
+}

@@ -47,7 +47,7 @@ export function subtitleTitle(s: MediaStream): string {
 }
 
 /* ======== 菜单键类型（与 Controls 共享）======== */
-export type MenuKey = 'rate' | 'subtitle' | 'audio' | 'source'
+export type MenuKey = 'rate' | 'subtitle' | 'audio' | 'source' | 'tools'
 
 /* ======== 小部件：IconBtn ======== */
 export function IconBtn({

@@ -30,6 +30,7 @@ import {
   type MenuKey,
 } from './parts/Menus'
 import { useControlState } from './parts/useControlState'
+import { toggleStatsOverlay } from './parts/StatsOverlay'
 
 // 防止 getSubtitleUrl 被 tree-shake 警告
 void getSubtitleUrl
@@ -331,6 +332,25 @@ export function Controls(props: ControlsProps) {
               onToggle={() => setOpen(open === 'source' ? null : 'source')}
               setOpen={setOpen}
             />
+
+            {/* 调试 / 统计 */}
+            <Menu
+              data-player-menu="tools"
+              open={open === 'tools'}
+              onToggle={() => setOpen(open === 'tools' ? null : 'tools')}
+              button={<span className="text-xs sm:text-sm font-semibold tabular-nums">···</span>}
+              buttonAria="更多"
+              align="right"
+            >
+              <MenuItem
+                onClick={() => {
+                  toggleStatsOverlay()
+                  setOpen(null)
+                }}
+              >
+                播放统计信息 <span className="ml-4 opacity-50 text-[10px]">⌘⇧I</span>
+              </MenuItem>
+            </Menu>
 
             {/* 画中画 */}
             {(control ? control.canPictureInPicture : canPip) ? (

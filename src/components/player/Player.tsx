@@ -26,6 +26,8 @@ import { useMpvOverlayActions } from './backends/useMpvOverlayActions'
 import { useMpvOverlayMetadata } from './backends/useMpvOverlayMetadata'
 import { useMpvReporting } from './backends/useMpvReporting'
 import { usePlayerLoader } from './parts/usePlayerLoader'
+import { StatsOverlay } from './parts/StatsOverlay'
+import { usePlaybackStats } from './parts/usePlaybackStats'
 
 export interface PlayerProps {
   itemId: string
@@ -229,6 +231,8 @@ export function Player(props: PlayerProps) {
   })
   mpvControlRef.current = mpvControl
 
+  const stats = usePlaybackStats({ videoRef, hlsRef, mpvControl, playbackBackend, mediaSourceBitrate: selectedMediaSource?.bitrate, mediaSourceLabel: selectedMediaSource?.name })
+
   useEffect(() => {
     if (containerRef.current) applySubtitleFontScale(containerRef.current, subtitleFontScale)
   }, [subtitleFontScale])
@@ -388,6 +392,7 @@ export function Player(props: PlayerProps) {
           onNext={nextSource}
         />
       ) : null}
+      <StatsOverlay stats={stats} />
     </div>
   )
 }
