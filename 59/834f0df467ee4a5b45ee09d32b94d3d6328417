@@ -1,0 +1,36 @@
+src/components/layout/TopBar.scss
+  h_3f8db872363dd2 5-13,16-17,19-21,27,29,37,42-54,65,67-75,94,110,114,118-119,122-126,128-130,133-138,140,142-143,146,148-150,153-155,159,161,163-174,177-178,181-184,187-189,197,205,213,217
+src/pages/home-parts/HeroWallpaper.scss
+  h_3f8db872363dd2 1-114
+src/components/ui/SearchSuggest.scss
+  h_3f8db872363dd2 15,27-28,35,48,75,130,154
+src/components/ui/filter-parts/AdvancedPanel.scss
+  h_3f8db872363dd2 1-69
+src/pages/home-parts/ContinueHero.scss
+  h_3f8db872363dd2 1-402
+.gitignore
+  s_e43cd59fff1498::t_7c43fcc850f973 17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "59834f0df467ee4a5b45ee09d32b94d3d6328417",
+  "prompts": {},
+  "humans": {
+    "h_3f8db872363dd2": {
+      "author": "Relay <relay@local>"
+    }
+  },
+  "sessions": {
+    "s_e43cd59fff1498": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-b1810a0d-d6c4-4029-afdd-e180e531d4f6",
+        "model": "default"
+      },
+      "human_author": "Relay <relay@local>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
