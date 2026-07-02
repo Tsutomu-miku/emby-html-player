@@ -1,132 +1,41 @@
 .filter-bar {
-  display: grid;
-  gap: 12px;
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  background: rgba(15, 23, 31, 0.56);
-  padding: 12px;
-  backdrop-filter: blur(16px) saturate(1.18);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
 
   &__row {
     display: flex;
+    width: 100%;
     flex-wrap: wrap;
     align-items: center;
-    gap: 12px;
-
-    &--primary {
-      align-items: stretch;
-    }
+    gap: 10px;
   }
 
-  &__search {
-    min-width: 220px;
-    flex: 1 1 260px;
-  }
-
-  &__search-wrap {
-    position: relative;
-  }
-
-  &__search-icon {
-    position: absolute;
-    top: 50%;
-    left: 12px;
-    width: 17px;
-    height: 17px;
-    color: var(--text-muted);
-    pointer-events: none;
-    transform: translateY(-50%);
-  }
-
-  &__field {
+  &__group {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
   }
 
-  &__label {
-    flex: 0 0 auto;
-    color: var(--text-muted);
-    font-size: 14px;
-  }
-
-  &__input,
-  &__select {
-    height: 40px;
+  &__sort-order {
+    position: relative;
+    left: -6px;
+    display: grid;
+    width: 22px;
+    height: 22px;
+    place-items: center;
     border: 1px solid var(--glass-border);
-    border-radius: 10px;
-    color: var(--text-strong);
-    outline: none;
-    background: rgba(18, 27, 35, 0.74);
-    font-size: 14px;
-    transition:
-      border-color 150ms var(--ease-out),
-      background 150ms var(--ease-out),
-      box-shadow 150ms var(--ease-out),
-      transform 150ms var(--ease-out);
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.07);
-    }
-
-    &:focus {
-      border-color: rgba(100, 216, 107, 0.55);
-      box-shadow: 0 0 0 3px rgba(100, 216, 107, 0.18);
-    }
-  }
-
-  &__input {
-    width: 100%;
-    padding: 0 12px;
-
-    &--search {
-      padding-left: 38px;
-    }
-  }
-
-  &__select {
-    min-width: 112px;
-    padding: 0 34px 0 12px;
-    appearance: none;
-    background-image:
-      linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
-      linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
-    background-position:
-      calc(100% - 17px) 17px,
-      calc(100% - 12px) 17px;
-    background-size:
-      5px 5px,
-      5px 5px;
-    background-repeat: no-repeat;
-
-    &--small {
-      min-width: 86px;
-    }
-
-    &--wide {
-      min-width: 144px;
-      max-width: 220px;
-    }
-  }
-
-  &__segments {
-    display: inline-flex;
-    overflow: hidden;
-    border: 1px solid var(--glass-border);
-    border-radius: 10px;
-  }
-
-  &__segment {
-    min-height: 38px;
-    border: 0;
+    border-left: 0;
+    border-radius: 0 999px 999px 0;
     color: var(--text-muted);
-    background: rgba(18, 27, 35, 0.72);
-    padding: 0 13px;
-    font-size: 14px;
+    background: rgba(15, 23, 31, 0.72);
+    backdrop-filter: blur(10px);
+    cursor: pointer;
     transition:
-      background 150ms var(--ease-out),
-      color 150ms var(--ease-out),
-      transform 150ms var(--ease-out);
+      transform 140ms var(--ease-out),
+      color 140ms var(--ease-out),
+      background 140ms var(--ease-out);
 
     &:hover {
       color: var(--text-strong);
@@ -134,57 +43,136 @@
     }
 
     &:active {
-      transform: scale(0.97);
+      transform: scale(0.96);
     }
 
-    &.is-active {
-      color: #fff;
-      background: linear-gradient(135deg, var(--accent-strong), var(--accent));
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+    &.is-desc svg {
+      transform: rotate(180deg);
+    }
+
+    svg {
+      width: 12px;
+      height: 12px;
+      transition: transform 180ms var(--ease-out);
     }
   }
 
-  &__reset {
-    min-height: 38px;
-    margin-left: auto;
-    border: 1px solid var(--glass-border);
-    border-radius: 10px;
+  &__spacer {
+    flex: 1 1 auto;
+  }
+
+  &__search {
+    position: relative;
+    display: inline-flex;
+    min-width: 200px;
+    flex: 0 1 280px;
+    align-items: center;
+  }
+
+  &__search-icon {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    width: 16px;
+    height: 16px;
     color: var(--text-muted);
-    background: rgba(255, 255, 255, 0.06);
-    padding: 0 14px;
+    pointer-events: none;
+    transform: translateY(-50%);
+  }
+
+  &__input {
+    height: 36px;
+    border: 1px solid var(--glass-border);
+    border-radius: 999px;
+    color: var(--text-strong);
+    outline: none;
+    background: rgba(15, 23, 31, 0.72);
+    backdrop-filter: blur(10px);
     font-size: 13px;
     transition:
-      transform 150ms var(--ease-out),
+      border-color 150ms var(--ease-out),
       background 150ms var(--ease-out),
-      color 150ms var(--ease-out);
+      box-shadow 150ms var(--ease-out);
 
     &:hover {
-      color: var(--text-strong);
-      background: rgba(255, 255, 255, 0.1);
-      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.06);
     }
 
-    &:active {
-      transform: translateY(0) scale(0.98);
+    &:focus {
+      border-color: rgba(100, 216, 107, 0.48);
+      box-shadow: 0 0 0 3px rgba(100, 216, 107, 0.18);
     }
+
+    &--search {
+      width: 100%;
+      padding: 0 12px 0 34px;
+    }
+  }
+
+  /* Advanced (funnel) panel */
+  &__advanced {
+    position: relative;
+  }
+
+  &__panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 30;
+    display: grid;
+    min-width: 320px;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  &__panel-title {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  &__panel-range {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__panel-dash {
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  &__panel-range &__input {
+    flex: 1;
+    width: 100%;
+    padding: 0 12px;
+  }
+
+  &__panel-reset {
+    min-height: 34px;
+    justify-self: end;
+    padding: 4px 14px;
+    font-size: 13px;
   }
 }
 
-@media (max-width: 640px) {
+.animate-menu-in {
+  animation: menuIn 160ms var(--ease-out);
+}
+
+@media (max-width: 720px) {
   .filter-bar {
-    &__search,
-    &__field,
-    &__select,
-    &__reset {
-      width: 100%;
+    &__search {
+      flex: 1 1 100%;
+      min-width: 0;
     }
 
-    &__segments {
-      width: 100%;
-    }
-
-    &__segment {
-      flex: 1;
+    &__panel {
+      left: auto;
+      right: 0;
+      min-width: min(100vw - 40px, 340px);
     }
   }
 }

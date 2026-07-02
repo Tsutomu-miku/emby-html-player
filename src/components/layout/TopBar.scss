@@ -2,17 +2,31 @@
   position: sticky;
   top: 0;
   z-index: 40;
-  border-bottom: 0;
-  background: linear-gradient(180deg, rgba(4, 8, 12, 0.72), rgba(4, 8, 12, 0));
-  backdrop-filter: none;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  transition:
+    background 220ms var(--ease-out),
+    border-color 220ms var(--ease-out),
+    backdrop-filter 220ms var(--ease-out),
+    -webkit-backdrop-filter 220ms var(--ease-out);
+
+  &.is-scrolled {
+    background: linear-gradient(
+      180deg,
+      rgba(40, 40, 40, 0.82) 0%,
+      rgba(28, 28, 28, 0.48) 100%
+    );
+    backdrop-filter: blur(22px) saturate(1.28);
+    -webkit-backdrop-filter: blur(22px) saturate(1.28);
+  }
 
   &__inner {
     display: flex;
     max-width: 1600px;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     margin: 0 auto;
-    padding: 14px 16px 8px;
+    padding: 10px 16px;
   }
 
   &__leading {
@@ -20,11 +34,24 @@
     min-width: 0;
     flex: 0 0 auto;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
   }
 
   &__mobile-button {
     margin-left: -8px;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    color: var(--text-strong) !important;
+    backdrop-filter: none !important;
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 999px !important;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.08) !important;
+      color: var(--text-strong) !important;
+    }
 
     svg {
       width: 20px;
@@ -35,14 +62,17 @@
   &__crumbs {
     display: none;
     min-width: 0;
-    max-width: 460px;
+    max-width: 360px;
     align-items: center;
-    gap: 8px;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    padding: 0;
-    font-size: 14px;
+    gap: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    background: rgba(167, 167, 167, 0.42);
+    backdrop-filter: blur(14px) saturate(1.25);
+    -webkit-backdrop-filter: blur(14px) saturate(1.25);
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
   }
 
   &__crumb {
@@ -61,17 +91,7 @@
 
   &__crumb-link,
   &__crumb-separator {
-    color: var(--text-muted);
-  }
-
-  &__crumb-separator {
-    font-size: 0;
-
-    &::after {
-      content: '›';
-      color: rgba(243, 246, 247, 0.48);
-      font-size: 15px;
-    }
+    color: var(--text-strong);
   }
 
   &__crumb-link {
@@ -87,14 +107,53 @@
   }
 
   &__search {
+    position: relative;
     display: flex;
     min-width: 0;
     flex: 1;
-    justify-content: flex-end;
+    justify-content: center;
   }
 
   &__search-box {
-    max-width: 270px;
+    max-width: 560px;
+    width: 100%;
+  }
+
+  &__search-extras {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+
+  &__search-extra {
+    display: grid;
+    width: 30px;
+    height: 30px;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    color: var(--text-strong);
+    background: transparent;
+    cursor: pointer;
+    pointer-events: auto;
+    transition:
+      color 150ms var(--ease-out),
+      background 150ms var(--ease-out);
+
+    &:hover {
+      color: var(--text-strong);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    svg {
+      width: 18px;
+      height: 18px;
+    }
   }
 
   &__actions {
@@ -104,137 +163,38 @@
     gap: 8px;
   }
 
-  &__action svg {
-    width: 20px;
-    height: 20px;
-  }
-
-  &__user {
-    position: relative;
-  }
-
-  &__user-button {
-    display: flex;
-    align-items: center;
-    border: 1px solid transparent;
-    border-radius: 999px;
-    background: transparent;
-    padding: 2px;
+  &__round {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 999px !important;
+    border-color: transparent !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(12px) saturate(1.2) !important;
+    color: var(--text-strong) !important;
+    box-shadow: none !important;
     transition:
       background 150ms var(--ease-out),
-      border-color 150ms var(--ease-out),
-      transform 150ms var(--ease-out);
-
-    &:hover,
-    &.is-open {
-      border-color: var(--glass-border);
-      background: rgba(255, 255, 255, 0.08);
-    }
-
-    &:active {
-      transform: scale(0.96);
-    }
-  }
-
-  &__avatar {
-    position: relative;
-    display: grid;
-    width: 34px;
-    height: 34px;
-    place-items: center;
-    border: 1px solid var(--glass-border);
-    border-radius: 999px;
-    background: var(--glass-hover);
-    color: var(--text-muted);
-    font-size: 12px;
-    font-weight: 700;
-
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-  }
-
-  &__avatar-dot {
-    position: absolute;
-    right: -1px;
-    bottom: -1px;
-  }
-
-  &__menu {
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
-    z-index: 50;
-    width: 200px;
-    overflow: hidden;
-    border: 1px solid var(--glass-border);
-    border-radius: 12px;
-    background: rgba(20, 30, 39, 0.96);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.38);
-    animation: menuIn 160ms var(--ease-out);
-    backdrop-filter: blur(18px) saturate(1.18);
-  }
-
-  &__menu-head {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-    padding: 10px 12px;
-  }
-
-  &__menu-name {
-    overflow: hidden;
-    color: var(--text-strong);
-    font-size: 14px;
-    font-weight: 700;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  &__menu-meta {
-    overflow: hidden;
-    margin-top: 2px;
-    color: var(--text-muted);
-    font-size: 12px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  &__menu-item {
-    display: flex;
-    width: 100%;
-    align-items: center;
-    gap: 10px;
-    border: 0;
-    color: var(--text-strong);
-    background: transparent;
-    padding: 10px 12px;
-    text-align: left;
-    font-size: 14px;
-    transition:
-      background 150ms var(--ease-out),
-      color 150ms var(--ease-out);
+      color 150ms var(--ease-out),
+      border-color 150ms var(--ease-out) !important;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.07);
+      color: var(--text-strong) !important;
+      background: rgba(255, 255, 255, 0.1) !important;
+      border-color: rgba(255, 255, 255, 0.1) !important;
+      transform: translateY(-1px);
     }
 
-    &--danger {
-      color: #ff9b9b;
+    svg {
+      width: 18px !important;
+      height: 18px !important;
     }
-  }
-
-  &__menu-icon {
-    width: 16px;
-    height: 16px;
-    flex: 0 0 auto;
   }
 }
 
 @media (min-width: 768px) {
   .topbar {
     &__inner {
-      padding: 18px 28px 8px;
+      padding: 10px 28px;
     }
 
     &__mobile-button {
@@ -242,7 +202,7 @@
     }
 
     &__leading {
-      flex: 1.2 1 0;
+      flex: 1 1 0;
     }
 
     &__crumbs {
@@ -250,17 +210,12 @@
     }
 
     &__search {
-      flex: 0 1 360px;
+      flex: 1.3 1 0;
     }
 
     &__actions {
-      flex: 0 0 auto;
+      flex: 1 1 0;
       justify-content: flex-end;
-    }
-
-    &__action,
-    &__user {
-      display: none;
     }
   }
 }

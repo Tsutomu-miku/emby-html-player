@@ -1,0 +1,114 @@
+/* ==========================================================================
+   HeroWallpaper — atmospheric backdrop for the top portion of the home page.
+   Layer order (bottom → top):
+     sky base → radial cloud highlights → mountain silhouettes → optional real
+     hero photo (blended) → vignette/top-glow → bottom fade into body color.
+   ========================================================================== */
+.hero-wallpaper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* Do not allow the wallpaper to influence stacking of adjacent layout
+     regions (sidebar) since we clip it explicitly via width/left below. */
+  clip-path: inset(0);
+
+  &__sky,
+  &__clouds,
+  &__mountains,
+  &__photo,
+  &__vignette,
+  &__fade {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  /* Dark base sky with a subtle warm left → cool right gradient, matching
+     the design's golden-hour-over-mountains mood. */
+  &__sky {
+    background:
+      radial-gradient(ellipse 72% 42% at 22% 22%, rgba(255, 182, 112, 0.22), transparent 68%),
+      radial-gradient(ellipse 64% 38% at 78% 16%, rgba(102, 140, 196, 0.18), transparent 64%),
+      radial-gradient(ellipse 80% 60% at 52% 40%, rgba(88, 108, 136, 0.16), transparent 72%),
+      linear-gradient(180deg, #0a1119 0%, #0e1926 44%, #0b1320 100%);
+  }
+
+  /* Soft cloud-like shapes, blurred. */
+  &__clouds {
+    background:
+      radial-gradient(ellipse 40% 16% at 32% 10%, rgba(255, 255, 255, 0.05), transparent 70%),
+      radial-gradient(ellipse 52% 22% at 68% 28%, rgba(255, 255, 255, 0.04), transparent 72%),
+      radial-gradient(ellipse 36% 12% at 18% 36%, rgba(255, 255, 255, 0.035), transparent 70%),
+      radial-gradient(ellipse 48% 18% at 82% 14%, rgba(180, 196, 224, 0.06), transparent 70%),
+      radial-gradient(ellipse 60% 16% at 48% 34%, rgba(255, 255, 255, 0.03), transparent 70%);
+    filter: blur(8px);
+    opacity: 0.85;
+  }
+
+  /* Mountain silhouettes drawn with multi-stop conic/linear clipped gradients.
+     Using stacked linear-gradient "rays" + bottom shapes for a jagged ridge. */
+  &__mountains {
+    background:
+      /* far range */
+      linear-gradient(180deg, transparent 54%, rgba(16, 26, 40, 0.52) 74%, rgba(10, 18, 28, 0.9) 100%),
+      /* near-left peak */
+      radial-gradient(ellipse 30% 36% at 18% 92%, rgba(6, 12, 20, 0.95), transparent 68%),
+      /* near-right peak */
+      radial-gradient(ellipse 34% 42% at 72% 96%, rgba(5, 11, 20, 0.96), transparent 70%),
+      /* center valley shadow */
+      radial-gradient(ellipse 48% 28% at 46% 102%, rgba(3, 7, 14, 1), transparent 72%);
+    mix-blend-mode: multiply;
+  }
+
+  /* Optional real hero photo — no filter; purely an opacity/masked mood
+     layer so the actual artwork carries the atmosphere. */
+  &__photo {
+    top: -4%;
+    right: -28px;
+    width: 100%;
+    height: 108%;
+    object-fit: cover;
+    opacity: 0.82;
+    mix-blend-mode: normal;
+    mask-image: linear-gradient(180deg, #000 0%, #000 52%, rgba(0, 0, 0, 0.3) 78%, transparent 100%);
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 52%, rgba(0, 0, 0, 0.3) 78%, transparent 100%);
+  }
+
+  /* Soft top & center glow like the design's hazy horizon. */
+  &__vignette {
+    background:
+      radial-gradient(ellipse 55% 40% at 50% 44%, rgba(255, 212, 148, 0.08), transparent 72%),
+      radial-gradient(ellipse 80% 60% at 50% 100%, rgba(0, 0, 0, 0.6), transparent 64%),
+      radial-gradient(ellipse 60% 100% at 50% 0%, rgba(0, 0, 0, 0.28), transparent 70%);
+  }
+
+  /* Bottom fade: soft, extended blend so wallpaper does not look like a
+     clipped rectangle.  Reaches full page color before the media library
+     section paints so card contrast stays strong. */
+  &__fade {
+    inset: auto 0 0 0;
+    height: 80%;
+    background: linear-gradient(
+      180deg,
+      rgba(5, 9, 13, 0) 0%,
+      rgba(5, 9, 13, 0.22) 26%,
+      rgba(5, 9, 13, 0.55) 50%,
+      rgba(5, 9, 13, 0.82) 70%,
+      #05090d 86%,
+      #05090d 100%
+    );
+  }
+}
+
+/* Desktop: stop wallpaper at sidebar right edge (224px) and also keep its
+   right edge inside the content viewport (no overflow). */
+@media (min-width: 768px) {
+  .hero-wallpaper {
+    left: 224px;
+    right: 0;
+  }
+}

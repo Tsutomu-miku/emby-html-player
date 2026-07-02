@@ -27,9 +27,7 @@ export function Sidebar() {
       .then((r) => {
         if (!cancelled) setViews(r.items || [])
       })
-      .catch((error: unknown) => {
-        console.error('[Sidebar] failed to load user views:', error)
-      })
+      .catch((e: unknown) => console.error('[Sidebar] getUserViews failed:', e))
     return () => {
       cancelled = true
     }
@@ -52,10 +50,10 @@ export function Sidebar() {
   return (
     <aside className="sidebar">
       <Link to="/" className="sidebar__brand">
-        <span className="sidebar__brand-mark">
-          <span />
+        <span className="sidebar__brand-mark" aria-hidden="true">
+          <span className="sidebar__brand-mark-inner" />
         </span>
-        <span className="sidebar__brand-text">emby</span>
+        <span className="sidebar__brand-text">Emby H5</span>
       </Link>
 
       <SidebarNavLink to="/" active={location.pathname === '/'} exactMatch>
@@ -73,9 +71,7 @@ export function Sidebar() {
         <span>首页</span>
       </SidebarNavLink>
 
-      <div className="sidebar__section-title">
-        媒体库
-      </div>
+      <div className="sidebar__section-title">媒体库</div>
 
       <div className="sidebar__library-list">
         {views.map((v) => (
@@ -119,11 +115,7 @@ export function Sidebar() {
           </div>
           <div className="sidebar__user-main">
             <div className="sidebar__user-name">{user?.name || '未登录'}</div>
-            <button
-              onClick={handleLogout}
-              className="sidebar__logout"
-              type="button"
-            >
+            <button onClick={handleLogout} className="sidebar__logout" type="button">
               退出登录
             </button>
           </div>
@@ -133,7 +125,6 @@ export function Sidebar() {
   )
 }
 
-/** 侧栏中的单个导航链接 */
 function SidebarNavLink({
   to,
   children,
@@ -145,14 +136,11 @@ function SidebarNavLink({
   active?: boolean
   exactMatch?: boolean
 }) {
-  // 移动端紧凑显示，桌面端正常
   return (
     <RRNavLink
       to={to}
       end={exactMatch}
-      className={({ isActive }) =>
-        cx('sidebar__nav-link', (isActive || active) && 'is-active')
-      }
+      className={({ isActive }) => cx('sidebar__nav-link', (isActive || active) && 'is-active')}
     >
       {children}
     </RRNavLink>
@@ -162,7 +150,15 @@ function SidebarNavLink({
 function LibraryGlyph({ collectionType }: { collectionType?: string }) {
   if (collectionType === 'movies') {
     return (
-      <svg viewBox="0 0 24 24" className="sidebar__icon" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        viewBox="0 0 24 24"
+        className="sidebar__icon"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <rect x="3" y="5" width="18" height="14" rx="2" />
         <path d="M7 5v14M17 5v14M3 9h4M17 9h4M3 15h4M17 15h4" />
       </svg>
@@ -170,14 +166,30 @@ function LibraryGlyph({ collectionType }: { collectionType?: string }) {
   }
   if (collectionType === 'tvshows') {
     return (
-      <svg viewBox="0 0 24 24" className="sidebar__icon" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        viewBox="0 0 24 24"
+        className="sidebar__icon"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <rect x="3" y="7" width="18" height="13" rx="2" />
         <path d="m8 3 4 4 4-4" />
       </svg>
     )
   }
   return (
-    <svg viewBox="0 0 24 24" className="sidebar__icon" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      className="sidebar__icon"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <rect x="4" y="4" width="16" height="16" rx="2" />
       <path d="M9 9h6v6H9z" />
     </svg>

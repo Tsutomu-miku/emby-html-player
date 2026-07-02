@@ -7,7 +7,9 @@ import { useAsync } from '@/hooks/useAsync'
 import { PosterCard } from '@/components/ui/PosterCard'
 import { LibraryFilterBar, DEFAULT_FILTER, type LibraryFilterState } from '@/components/ui/LibraryFilterBar'
 import { ErrorState } from '@/components/ui/ErrorState'
+import { ViewToggle, type ViewMode } from '@/components/ui/primitives'
 import { collectionTypeLabel } from '@/components/layout/Sidebar'
+import { cx } from '@/utils'
 import './LibraryPage.scss'
 
 const PAGE_SIZE = 60
@@ -32,6 +34,7 @@ export function LibraryPage() {
 
   // 筛选
   const [filter, setFilter] = useState<LibraryFilterState>(DEFAULT_FILTER)
+  const [viewMode, setViewMode] = useState<ViewMode>('grid')
 
   // 数据
   const [all, setAll] = useState<BaseItemDto[]>([])
@@ -148,13 +151,18 @@ export function LibraryPage() {
               currentView?.name || '媒体库'
             )}
           </h1>
-          {currentView?.collectionType && (
-            <span className="chip library-page__type">{collectionTypeLabel(currentView.collectionType)}</span>
-          )}
+          <span className="chip library-page__type-count">
+            {currentView?.collectionType
+              ? collectionTypeLabel(currentView.collectionType) + ' · '
+              : ''}
+            共 {total > 0 ? total : loading ? '…' : all.length} 条
+          </span>
         </div>
-        <p className="library-page__count">
-          共 {total > 0 ? total : loading ? '...' : all.length} 条
-        </p>
+        <ViewToggle
+          value={viewMode}
+          onChange={setViewMode}
+          className="library-page__view-toggle"
+        />
       </header>
 
       <LibraryFilterBar viewId={viewId} value={filter} onChange={setFilter} />
@@ -171,7 +179,7 @@ export function LibraryPage() {
       )}
 
       {loading && all.length === 0 && !error && (
-        <div className="library-page__grid">
+        <div className={cx('library-page__grid', viewMode === 'list' && 'is-list')}>
           {Array.from({ length: skeletonCount }).map((_, i) => (
             <div key={i}>
               <div className={skeletonAspect()} />
@@ -183,7 +191,7 @@ export function LibraryPage() {
       )}
 
       {all.length > 0 && (
-        <div className="library-page__grid">
+        <div className={cx('library-page__grid', viewMode === 'list' && 'is-list')}>
           {all.map((item) => (
             <PosterCard key={item.id} item={item} shape={posterShape} size="md" showPlayButton />
           ))}
@@ -199,6 +207,9 @@ export function LibraryPage() {
             </div>
           ) : (
             <button type="button" className="library-page__load-button" onClick={handleLoadMore}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
               加载更多
             </button>
           )}
