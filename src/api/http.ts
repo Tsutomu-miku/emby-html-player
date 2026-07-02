@@ -1,4 +1,4 @@
-import { useAuthStore } from '@/store/auth'
+import { getEmbyApiSession } from './embyApiSession'
 import { camelToPascal, pascalToCamel } from '@/utils/casing'
 
 export interface RequestOptions
@@ -80,7 +80,7 @@ export async function request<T = unknown>(
     ...rest
   } = options
 
-  const { server, accessToken, deviceId } = useAuthStore.getState()
+  const { server, accessToken, deviceId, onUnauthorized } = getEmbyApiSession()
 
   // 判定是否为完整 URL：完整 URL 则 base = ""，path 作为 URL 直接用。
   const pathIsAbsolute = isFullHttpUrl(path)
@@ -214,12 +214,7 @@ export async function request<T = unknown>(
       text,
     )
     if (response.status === 401) {
-      // 凭据失效，登出
-      try {
-        useAuthStore.getState().logout()
-      } catch (err) {
-        console.warn('[http] logout after 401 failed', err)
-      }
+      onUnauthorized?.()
     }
     throw err
   }
@@ -275,7 +270,7 @@ function redactSecret(value: string, secret: string): string {
 
 /** 从 navigator.platform 推断设备名，用于 X-Emby-Authorization 的 Device 字段 */
 function detectDeviceName(): string {
-  const p = navigator.platform || ''
+  const p = globalThis.navigator?.platform || ''
   if (/mac/i.test(p)) return 'macOS'
   if (/win/i.test(p)) return 'Windows'
   if (/linux/i.test(p)) return 'Linux'

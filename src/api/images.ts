@@ -1,4 +1,4 @@
-import { useAuthStore } from '@/store/auth'
+import { getEmbyApiSession } from './embyApiSession'
 import { buildQuery } from './http'
 
 export type ImageType =
@@ -44,7 +44,7 @@ export function getImageUrl(
   tag: string | undefined,
   opts: ImageUrlOptions = {},
 ): string {
-  const { server, accessToken, deviceId } = useAuthStore.getState()
+  const { server, accessToken, deviceId } = getEmbyApiSession()
   if (!itemId || !tag) {
     if (opts.placeholderOnMissing) return placeholder(type, opts)
     return ''

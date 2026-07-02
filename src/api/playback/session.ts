@@ -1,6 +1,6 @@
 import { request } from '../http'
 import type { ClientCapabilities, DeviceProfile, SessionInfo } from '../types'
-import { useAuthStore } from '@/store/auth'
+import { getEmbyApiSession } from '../embyApiSession'
 
 let registeredKey = ''
 let pendingRegistration: Promise<void> | undefined
@@ -8,7 +8,7 @@ let pendingRegistration: Promise<void> | undefined
 export async function ensureSessionCapabilities(
   deviceProfile: DeviceProfile,
 ): Promise<void> {
-  const { server, accessToken, deviceId } = useAuthStore.getState()
+  const { server, accessToken, deviceId } = getEmbyApiSession()
   if (!server) throw new Error('未配置服务器地址，请先登录')
   if (!accessToken) throw new Error('未登录，无法注册 Emby 播放会话能力')
   if (!deviceId) throw new Error('缺少 DeviceId，无法注册 Emby 播放会话能力')
