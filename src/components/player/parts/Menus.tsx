@@ -1,4 +1,4 @@
-/* eslint-disable max-lines -- 含 4 个格式化函数 + 3 个 UI 构建块 + 3 个菜单组件，311 行 ≤ 400 符合特例 */
+/* eslint-disable max-lines -- 播放菜单共享同一组展示规则和选择状态，保持在一起更易审阅 */
 import { useRef } from 'react'
 import type { MediaSourceInfo, MediaStream, PlayMethod } from '@/api/types'
 import { cx } from '@/utils'

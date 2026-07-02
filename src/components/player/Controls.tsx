@@ -1,5 +1,5 @@
-/* eslint-disable max-lines -- Controls 主组件含状态/事件/渲染高内聚，拆分后仍 361 行 ≤ 400 符合特例 */
-/* eslint-disable max-lines-per-function -- Controls 高内聚 UI 组件，state/handlers/JSX 强耦合无法拆分 */
+/* eslint-disable max-lines -- Controls 仍是单一播放控制语义，拆散会降低控制流可读性 */
+/* eslint-disable max-lines-per-function -- 控件 state、handlers、JSX 紧密绑定，暂保持同一组件 */
 import { useEffect, useMemo, useState } from 'react'
 import type { BaseItemDto, PlayMethod } from '@/api/types'
 import { getSubtitleUrl } from '@/api/playback'

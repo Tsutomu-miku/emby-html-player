@@ -1,4 +1,4 @@
-/* eslint-disable max-lines-per-function -- PlayerPage 页面级组件（路由+hooks+JSX），强耦合无法拆分到独立组件，308 行符合特例 */
+/* eslint-disable max-lines-per-function -- PlayerPage 页面级组件负责路由、hooks 与播放页面布局接线 */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Player } from '@/components/player/Player'

@@ -1,5 +1,5 @@
 /* eslint-disable max-lines -- Player 主组件仍负责后端选择、控制条接线、快捷键与渲染组合；
-   继续拆分会把同一播放页面的事件流拆散。详见 AGENTS.md §1（特殊场景 ≤400）。 */
+   继续拆分会把同一播放页面的事件流拆散。 */
 /* eslint-disable max-lines-per-function -- 完整 React 组件函数承载渲染 + 状态绑定，
    拆分函数会割裂"状态 → 副作用 → JSX"的单一可读流，违反功能解耦优先的重构原则。 */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
