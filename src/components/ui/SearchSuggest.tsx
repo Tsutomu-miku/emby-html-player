@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuthStore } from '@/store/auth'
 import { searchHints } from '@/api/library'
 import { getImageUrl } from '@/api/images'
 import { debounce, cx } from '@/utils'
@@ -12,9 +11,8 @@ import './SearchSuggest.scss'
  * 搜索建议组件：输入关键词 → debounce 后调用 searchHints → 下拉显示 ≤10 条。
  * 点击跳转 /item/:itemId 并清空。
  */
-export function SearchSuggest({ className }: { className?: string }) {
+export function SearchSuggest({ className, userId }: { className?: string; userId: string }) {
   const navigate = useNavigate()
-  const userId = useAuthStore((s) => s.userId)
   const [term, setTerm] = useState('')
   const [hints, setHints] = useState<SearchHint[]>([])
   const [open, setOpen] = useState(false)

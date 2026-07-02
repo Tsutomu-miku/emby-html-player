@@ -1,6 +1,4 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useAuthStore } from '@/store/auth'
-import { getGenres } from '@/api/library'
 import { debounce, cx } from '@/utils'
 import {
   FilterPill,
@@ -24,7 +22,7 @@ export type { LibraryFilterState } from './types'
 export { DEFAULT_FILTER } from './types'
 
 export interface LibraryFilterBarProps {
-  viewId: string
+  genres: { name: string }[]
   value: LibraryFilterState
   onChange: (v: LibraryFilterState) => void
 }
@@ -71,30 +69,9 @@ const isDefault = (f: LibraryFilterState): boolean =>
   f.played === DEFAULT_FILTER.played &&
   f.searchTerm === DEFAULT_FILTER.searchTerm
 
-export function LibraryFilterBar({ viewId, value, onChange }: LibraryFilterBarProps) {
-  const userId = useAuthStore((s) => s.userId)
-  const [genres, setGenres] = useState<{ name: string }[]>([])
+export function LibraryFilterBar({ genres, value, onChange }: LibraryFilterBarProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!userId || !viewId) return
-    let cancelled = false
-    getGenres(userId, { parentId: viewId, limit: 100, recursive: true })
-      .then((r) => {
-        if (cancelled) return
-        setGenres(
-          (r.items?.map((it) => ({ name: it.name || '' })).filter((g) => g.name) ||
-            []),
-        )
-      })
-      .catch((e: unknown) =>
-        console.error('[LibraryFilterBar] getGenres failed:', e),
-      )
-    return () => {
-      cancelled = true
-    }
-  }, [userId, viewId])
 
   useEffect(() => {
     if (!advancedOpen) return

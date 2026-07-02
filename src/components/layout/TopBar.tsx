@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuthStore } from '@/store/auth'
 import { IconButton } from '@/components/ui/primitives'
 import { SearchSuggest } from '@/components/ui/SearchSuggest'
 import { UserMenu } from './parts/UserMenu'
@@ -17,6 +18,7 @@ import './TopBar.scss'
  */
 export function TopBar() {
   const navigate = useNavigate()
+  const userId = useAuthStore((s) => s.userId)
   const crumbs = useBreadcrumbs()
   const [scrolled, setScrolled] = useState(false)
 
@@ -81,7 +83,7 @@ export function TopBar() {
         </div>
 
         <div className="topbar__search">
-          <SearchSuggest className="topbar__search-box" />
+          <SearchSuggest className="topbar__search-box" userId={userId} />
           <span className="topbar__search-extras" aria-hidden="true">
             <button type="button" className="topbar__search-extra" title="语音搜索" aria-label="语音搜索">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
